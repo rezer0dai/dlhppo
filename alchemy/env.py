@@ -11,12 +11,11 @@ class Env:
             n_step, send_delta,
             eval_limit, eval_ratio, max_n_episode, eval_delay,
             mcts_random_cap, mcts_rounds, mcts_random_ratio, limit,
-            debug_stats=True, fast_fail=True, do_not_eval_exploit=False
+            fast_fail=True, do_not_eval_exploit=False
             ):
 
         assert n_step <= send_delta, "for GAE, but we apply it in general, we need to send at least n_step samples ( adjust send_delta accordingly! )"
 
-        self.debug_stats = debug_stats
         self.fast_fail = fast_fail
         self.do_not_eval_exploit = do_not_eval_exploit
 
@@ -59,7 +58,8 @@ class Env:
 
         return -1
 
-    def start(self, task, callback):
+    def start(self, task, callback=None, debug_stats=False):
+        self.debug_stats = debug_stats
         finished, test_scores = self._evaluate(task)
         if finished:
             return test_scores
@@ -69,7 +69,8 @@ class Env:
 
             finished, test_scores = self._evaluate(task) if 0 == len(self.scores) % self.eval_delay else (False, None)
 
-            callback(self.agent, task, test_scores, self.scores[-1], [0], len(self.scores)) # back to user
+            if callback is not None:
+                callback(self.agent, task, test_scores, self.scores[-1], [0], len(self.scores)) # back to user
 
             if finished:
                 break
