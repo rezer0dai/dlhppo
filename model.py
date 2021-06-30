@@ -19,9 +19,12 @@ class Actor(nn.Module): # decorator
         self.net = net
         self.algo = PPOHead(action_size, f_scale_clip, noise_scale)
         self.f_mean_clip = f_mean_clip
-        self.ibottleneck = ibottleneck
+        if ibottleneck is not None:
+            self.add_module("ibottleneck", ibottleneck)
+        else:
+            self.ibottleneck = lambda x: x.to(self.device())
 
-        self.dummy_param = nn.Parameter(torch.empty(0))
+        self.register_parameter("dummy_param", nn.Parameter(torch.empty(0)))
     def device(self):
         return self.dummy_param.device
 
@@ -94,7 +97,7 @@ class Critic(nn.Module):
     def __init__(self, n_actors, n_rewards, state_size, action_size, layers, ibottleneck):
         super().__init__()
 
-        self.ibottleneck = ibottleneck
+        self.add_module("ibottleneck", ibottleneck)
 
 #        state_size = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE*(not config.NO_GOAL) - 3#achieved goal duplicate
         state_size = config.CORE_STATE_SIZE - config.CORE_ORIGINAL_GOAL_SIZE + config.HRL_GOAL_SIZE#achieved goal duplicate
@@ -119,7 +122,7 @@ class Critic(nn.Module):
         self.apply(initialize_weights)
         self.net[-1].weight.data.uniform_(-3e-3, 3e-3) # seems this works better ? TODO : proper tests!!
 
-        self.dummy_param = nn.Parameter(torch.empty(0))
+        self.register_parameter("dummy_param", nn.Parameter(torch.empty(0)))
     def device(self):
         return self.dummy_param.device
 

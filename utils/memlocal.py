@@ -5,10 +5,10 @@ from utils.fastmem import *
 from timebudget import timebudget
 
 class MemoryBoost:
-    def __init__(self, descs, memory, credit_assign, brain, good_reach, recalc_per_episode, recalc_per_push, device):
+    def __init__(self, descs, memory, credit_assign, brain, good_reach, recalc_per_episode, recalc_per_push):
         self.fast_m = [ IRFastMemory( # TODO add branch for PER ( Priotized Experience Replay )
             desc, memory.chunks, memory.device) if cred.resampling else FastMemory(
-                desc, memory.chunks, device) for cred, desc in zip(credit_assign, descs) ]
+                desc, memory.chunks) for cred, desc in zip(credit_assign, descs) ]
 
         self.memory = memory
 

@@ -6,7 +6,7 @@ from timebudget import timebudget
 import sys
 
 class FastMemory:
-    def __init__(self, desc, chunks, device):
+    def __init__(self, desc, chunks):
         self.xmemory = []
         self._memory = []
         self.desc = desc
@@ -16,11 +16,15 @@ class FastMemory:
         assert self.capacity
         self.ind = -1
         self.sentinel = 0
-        self.memory = torch.zeros(self.capacity, sum(chunks), device=device)
+        self.memory = None
+        self.params = [self.capacity, sum(chunks)]
 
 #        self.chunkies = [ torch.zeros(self.capacity, sum(self.chunks[:i+2])-sum(self.chunks[:i+1])) for i in range(len(self.chunks)-1) ]
 
     def push(self, episode, _):
+        if self.memory is None:
+            self.memory = torch.zeros(*self.params, device=episode.device)
+
         assert episode[0].shape[0] == sum(self.chunks), "--> {} {}".format(episode.shape, self.chunks)
         self._memory.extend(episode)
 

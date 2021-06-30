@@ -37,7 +37,7 @@ def Actor(action_size, layers, ibottleneck):
 HighLevelActor = lambda ec_size: Actor(
     config.HRL_ACTION_SIZE,
     layers = [ec_size+config.CORE_GOAL_SIZE, *config.HI_ARCH, config.HRL_ACTION_SIZE],
-    ibottleneck=lambda x: x)
+    ibottleneck=None)
 
 LowLevelActor = lambda ec_size: Actor(
     config.ACTION_SIZE,
@@ -58,12 +58,16 @@ class GlobalNormalizerWithTimeEx(IEncoder):
         super().__init__(size_in=size_in, size_out=size_in, n_features=1)
 
         self.lowlevel = lowlevel
-        self.enc = GlobalNormalizer(size_in if config.LEAK2LL or not lowlevel else config.LL_STATE_SIZE, 1).to(config.DEVICE)
-        self.goal_encoder = goal_encoder_ex
+        
+        enc = GlobalNormalizer(size_in if config.LEAK2LL or not lowlevel else config.LL_STATE_SIZE, 1)
+        
+        self.add_module("enc", enc)
+        self.add_module("goal_encoder", goal_encoder_ex)
 
     def forward(self, states, memory):
-        states = states.to(config.DEVICE)
-        memory = memory.to(config.DEVICE)
+        states = states.to(self.device())
+        memory = memory.to(self.device())
+        #print("\n my device", self.device(), self.goal_encoder.device(), goal_encoder_ex.device())
         enc = lambda data: self.goal_encoder(data).view(len(data), -1)
         pos = lambda buf, b, e: buf[:, b*config.CORE_ORIGINAL_GOAL_SIZE:e*config.CORE_ORIGINAL_GOAL_SIZE]
 
@@ -94,6 +98,7 @@ class GlobalNormalizerWithTimeEx(IEncoder):
         encoded = pos(encoded, 3, -(2*config.PUSHER+1)) # skip object + goal positions, those will be added by goal_encoder
 
         # note : achievedel goal, and goal will be skipped from NN ( this norm is used in encoders just for puting it trough NN )
+        #print("\n sumarize", arm_pos.device, encoded.device, obj_pos_w_goal.device)
         encoded = torch.cat([arm_pos, encoded, obj_pos_w_goal], 1)
 
         if states.shape[-1] != encoded.shape[-1]:
@@ -127,7 +132,7 @@ def new_agent(
         n_rewards, goal_size, state_size, encoder.features_n(), n_rewards, 1], 
                     ep_draw=3, ep_dream=config.MIN_N_SIM // 2)
 
-    experience = lambda descs, brain: MemoryBoost(descs, memory, credit_assign, brain, good_reach, recalc_per_episode=1, recalc_per_push=recalc_per_push, device=config.DEVICE)
+    experience = lambda descs, brain: MemoryBoost(descs, memory, credit_assign, brain, good_reach, recalc_per_episode=1, recalc_per_push=recalc_per_push)
 
     agent = Agent(
         config.DEVICE,
@@ -152,7 +157,7 @@ def new_agent(
             n_step=n_step, send_delta=max_steps,
             eval_limit=eval_limit, eval_ratio=.5, max_n_episode=max_steps, eval_delay=eval_delay,
             mcts_random_cap=100000, mcts_rounds=1, mcts_random_ratio=10, limit=100000,
-            debug_stats=dbg, fast_fail=fast_fail)
+            fast_fail=fast_fail)
     
     return agent, env
     
@@ -168,7 +173,7 @@ def install_lowlevel(low_level_task, Her):
     state_encoder = ll_state_encoder#IdentityEncoder(LL_STATE_SIZE)
 
     senv = make_env(False, config.ENV_NAME)
-    for seed in range(100):
+    for seed in range(1):#00):
         do_sample(senv, seed, goal_encoder, state_encoder)
 
     delay = 10
@@ -286,7 +291,7 @@ def install_highlevel(high_level_task, keyid):
     config.AGENT.append(agent)#.insert(0, agent)
 
     senv = make_env(False, config.ENV_NAME)
-    for seed in range(100):
+    for seed in range(1):#00):
         do_sample(senv, seed, goal_encoder, state_encoder)
     goal_encoder.stop_norm()
 

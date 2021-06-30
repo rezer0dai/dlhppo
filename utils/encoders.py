@@ -17,7 +17,7 @@ class IEncoder(nn.Module):
         self.size_out = size_out
         self.n_features = n_features
 
-        self.dummy_param = nn.Parameter(torch.empty(0))
+        self.register_parameter("dummy_param", nn.Parameter(torch.empty(0)))
     def device(self):
         return self.dummy_param.device
 
