@@ -61,6 +61,8 @@ class Pusher:
 
     def reset(self):
         data = self.env.reset()
+        while 0 == self.env.step(self.env.action_space.sample())[1]:
+            data = self.env.reset() # skip solved envs
         obs = data['observation']
         grip_pos = obs[0:3]
         object_pos = obs[3:6]

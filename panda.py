@@ -59,6 +59,8 @@ class Pusher:
 
     def reset(self):
         data = self.env.reset()
+        while 0 == self.env.step(self.env.action_space.sample())[1]:
+            data = self.env.reset() # skip solved envs
         obs = data['observation']
         ee_position = obs[0:3]
         ee_velocity = obs[3:6]
