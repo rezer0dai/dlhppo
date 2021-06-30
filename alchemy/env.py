@@ -48,6 +48,8 @@ class Env:
         self.seeds = []
         self.scores = [0]
 
+        self.debug_stats = False
+
     def _select_seed(self, n_iter):
         if self.mcts_random_ratio and 0 == n_iter % self.mcts_random_ratio:
             return random.randint(0, len(self.seeds)-1)
