@@ -16,7 +16,7 @@ import config
 class Actor(nn.Module): # decorator
     def __init__(self, net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale=False):
         super().__init__()
-        self.net = net
+        self.add_module("net", net)
         self.algo = PPOHead(action_size, f_scale_clip, noise_scale)
         self.f_mean_clip = f_mean_clip
         if ibottleneck is not None:

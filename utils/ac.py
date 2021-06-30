@@ -44,6 +44,15 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         self.goal_grads = [] if self.goal_encoder is None else [ p.requires_grad for p in self.goal_encoder.parameters() ]
         self.encoder_grads = [ p.requires_grad for p in self.encoder.parameters() ]
 
+    def tpu_wrap(self, wrap):
+        for actor in self.actor:
+            actor = wrap(actor)
+        for critic in self.critic:
+            critic = wrap(critic)
+    
+        self.encoder = wrap(encoder)
+        self.goal_encoder= wrap(self.goal_encoder)
+
     def parameters(self):
         for p in self.actor_parameters():
             yield p

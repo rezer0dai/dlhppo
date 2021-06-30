@@ -25,7 +25,7 @@ class NoisyLinear(nn.Linear):
         self.apply(initialize_weights)
 
     def forward(self, sigma, data):
-        #print("\n wow", sigma.device, data.device, self.noise.device)
+        #print("\n wow xxx", sigma.device, data.device, self.noise.device)
         return F.linear(data, self.weight + sigma * Variable(self.noise).to(sigma.device))
 
     def sample_noise(self):
@@ -44,14 +44,18 @@ class NoisyNet(nn.Module):
         self.relu = config.RELU#max([l.out_features for l in layers]) == 64
         print("RELU", self.relu, layers)
 
-        self.sigma = []
+        sigma = []
         for i, layer in enumerate(self.layers):
-            self.sigma.append(
-                nn.Parameter(torch.Tensor(layer.out_features, layer.in_features).fill_(.017)))
-            self.register_parameter("sigma_%i"%(i), self.sigma[-1])
+            sigma.append( 
+                nn.Parameter(torch.Tensor(layer.out_features, layer.in_features).fill_(.017))
+            )
+            #self.register_parameter("sigma_%i"%(i), sigma)
 
-            assert len(list(layer.parameters())) == 1, "unexpected layer in NoisyNet {}".format(layer)
+            #assert len(list(layer.parameters())) == 1, "unexpected layer in NoisyNet {}".format(layer)
 
+        self.sigma = nn.ParameterList(sigma)
+
+        for i, layer in enumerate(self.layers):
             for j, p in enumerate(layer.parameters()):
                 self.register_parameter("neslayer_%i_%i"%(i, j), p)
 
@@ -63,6 +67,7 @@ class NoisyNet(nn.Module):
             layer.remove_noise()
 
     def forward(self, data):
+        #print("\n ..... ", self.sigma_0.device)
         for i, layer in enumerate(self.layers[:-1]):
             if self.relu:
                 data = F.selu(layer(self.sigma[i], data))

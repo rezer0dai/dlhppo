@@ -35,6 +35,7 @@ class Brain(META):
             ):
         super().__init__(model_path, save, load, delay)
 
+        self.tpu_callback = None
         self.loss_callback = loss_callback if loss_callback is not None else def_loss_callback
 
         self.mp = model_path
@@ -151,6 +152,9 @@ class Brain(META):
                 pi_loss, critic_loss = self.loss_callback(pi_loss, critic_loss, self, actions, goals, states, memory, qa_stable, n_dist)
 
                 self.backprop(self.full_optimizer, .5 * (pi_loss + critic_loss), self.ac_explorer.parameters())
+
+                if self.tpu_callback is not None:
+                    self.tpu_callback(self.full_optimizer)
 
         with timebudget("_learn_meta"):
             # propagate updates to target network ( network we trying to effectively learn )
