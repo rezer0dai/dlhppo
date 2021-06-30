@@ -168,7 +168,7 @@ def install_lowlevel(low_level_task, Her):
     state_encoder = ll_state_encoder#IdentityEncoder(LL_STATE_SIZE)
 
     senv = make_env(False, config.ENV_NAME)
-    for seed in range(1):#00):
+    for seed in range(100):
         do_sample(senv, seed, goal_encoder, state_encoder)
 
     delay = 10
@@ -286,7 +286,7 @@ def install_highlevel(high_level_task, keyid):
     config.AGENT.append(agent)#.insert(0, agent)
 
     senv = make_env(False, config.ENV_NAME)
-    for seed in range(1):#00):
+    for seed in range(100):
         do_sample(senv, seed, goal_encoder, state_encoder)
     goal_encoder.stop_norm()
 
