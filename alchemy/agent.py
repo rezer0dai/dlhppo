@@ -7,7 +7,7 @@ from utils.rl_algos import BrainOptimizer
 
 import time, random
 
-from timebudget import timebudget
+#from timebudget import timebudget
 
 class BrainDescription:
     def __init__(self,
@@ -40,6 +40,7 @@ class BrainDescription:
         self.prio_schedule = prio_schedule
 
         self.counter = 0
+        self.info = None
 
     def __repr__(self):
         return str([
@@ -62,7 +63,7 @@ class BrainDescription:
             ])
 
 class Agent:
-    def __init__(self, device,
+    def __init__(self, 
             brains, experience,
             Actor, Critic, goal_encoder, encoder,
             n_agents, 
@@ -74,16 +75,16 @@ class Agent:
             lr_critic, clip_norm, q_clip,
             model_path, save, load, delay,
             min_n_sim=None,
-            loss_callback=None
+            loss_callback=None,
+            full_model=None
             ):
 
-        self.device = device
         self.freeze_delta = freeze_delta
         self.freeze_count = freeze_count
 
         self.n_targets = 1 if not detach_actors else n_actors
 
-        self.brain = Brain(device,
+        self.brain = Brain(
             Actor, Critic, encoder, goal_encoder,
             n_agents, 
             n_actors, detach_actors, n_critics, detach_critics,
@@ -91,7 +92,8 @@ class Agent:
             resample_delay,
             lr_critic, clip_norm, q_clip,
             model_path=model_path, save=save, load=load, delay=delay,
-            loss_callback=loss_callback
+            loss_callback=loss_callback,
+            full_model=full_model
             )
         self.brain.share_memory() # at this point we dont know if this is needed
 
@@ -110,38 +112,44 @@ class Agent:
         self.n_approved_simulations = 0
         self.min_n_sim = min_n_sim
 
-    def step(self, step):
+    def step(self, info):
         for i, desc in enumerate(self.bd_desc):
             self.exps.step(i, desc)
 
-        self._clocked_step()
+        return self._clocked_step(info)
 
 #    @timebudget
-    def _clocked_step(self):
+    def _clocked_step(self, info):
         if self.n_simulations is None:
-            return
+            return None
 
         if self.n_approved_simulations < self.n_simulations:
-            return
-
-#        print("APPROVED", self.n_approved_simulations)
+            return None
 
         for a_i, bd in self._select_algo():
             if not bd.learning_repeat:
                 continue
-            for _ in range(bd.learning_repeat // bd.optim_epochs):
-                bd.counter += 1
+            bd.counter += 1
+            while bd.counter < bd.learning_repeat:
+                
                 self._encoder_freeze_schedule()
 
-                with timebudget("learn-round"):
-                    batch = self.exps.sample(a_i, bd)
-                    self.brain.learn(
-                            batch,
-                            bd.sync_delta_a, bd.tau_actor,
-                            bd.sync_delta_c, bd.tau_critic,
-#                            0 if bd.counter % bd.sync_delta_a else bd.tau_actor,
-#                            0 if bd.counter % bd.sync_delta_c else bd.tau_critic,
-                            self.algo[a_i], a_i, bd.mean_only, bd.separate_actors)
+                if True:#with timebudget("learn-round"):
+                    batcher = self.exps.sample(a_i, bd)
+
+                    bd.info = batcher(*bd.info[-1])
+                    if bd.info[-1] is None:
+                        bd.info = (None, None, [-1, 0])
+                        continue
+                    loss = self.brain.learn(
+                        bd.info[:-1],
+                        bd.sync_delta_a, bd.tau_actor,
+                        bd.sync_delta_c, bd.tau_critic,
+                        self.algo[a_i], a_i, bd.mean_only, bd.separate_actors)
+                    return loss
+            bd.counter = 0
+            bd.info = None
+        return None
 
     def save(self, goals, states, memory, actions, probs, rewards, goods, finished):
         self.n_simulations = len(states[0]) if self.min_n_sim is None else self.min_n_sim
@@ -160,7 +168,7 @@ class Agent:
 
         full_batch = []
         for i in range(len(episode_batch[0])):
-            data = torch.cat([chunk[i].to(self.device).float() for chunk in episode_batch], 1)
+            data = torch.cat([chunk[i].type_as(probs[0]) for chunk in episode_batch], 1)
             full_batch.append(data)
         full_batch = torch.stack(full_batch).transpose(0, 1).contiguous()
         for e_i, ep in enumerate(full_batch):
@@ -197,7 +205,9 @@ class Agent:
         self.exps.shuffle()
 
     def _select_algo(self):
-        self.counter += 1
+        if 0 == sum([0 != bd.counter for bd in self.bd_desc]):
+            self.counter += 1
+        # bug here, infinite loop possible if multiple brains
         for i, bd in enumerate(self.bd_desc):
             if self.warmups[i] > 0:
                 self.warmups[i] -= 1
@@ -213,6 +223,8 @@ class Agent:
 #            if len(self.exps.fast_m[i]) < bd.optim_batch_size:
             if len(self.exps.fast_m[i]) < bd.batch_size:
                 continue
+            if bd.info is None:
+                bd.info = (None, None, [-1, 0])
             yield i, bd
 
     def _encoder_freeze_schedule(self):

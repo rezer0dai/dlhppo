@@ -14,35 +14,43 @@ import torch.nn as nn
 
 import config
 import numpy as np
-import random, timebudget
+import random#, timebudget
 
 import config
+import os
 
 action_to_goal_enc = nn.Sequential(
         nn.Linear(config.HRL_ACTION_SIZE, config.INFO_BOTTLENECK_SIZE, bias=False),
         nn.Tanh(),
         nn.Linear(config.INFO_BOTTLENECK_SIZE, config.HRL_GOAL_SIZE),
         nn.Tanh(),
-        ).to(config.DEVICE)
+        )#.to(config.DEVICE)
 action_to_goal_enc.share_memory()
 
+def scale(x):
+    return -(1+torch.relu(x))
+
 def Actor(action_size, layers, ibottleneck):
-    return lambda: model.ActorFactory(
-        layers, action_size=action_size, 
-        f_mean_clip=torch.tanh,
-        f_scale_clip=lambda x: -(1+torch.relu(x)),
-        ibottleneck=ibottleneck,
-        noise_scale=1.)
+    def fn():
+        return model.ActorFactory(
+            layers, action_size=action_size, 
+            f_mean_clip=torch.tanh,
+            f_scale_clip=scale,#lambda x: -(1+torch.relu(x)),
+            ibottleneck=ibottleneck,
+            noise_scale=1.)
+    return fn
 
-HighLevelActor = lambda ec_size: Actor(
-    config.HRL_ACTION_SIZE,
-    layers = [ec_size+config.CORE_GOAL_SIZE, *config.HI_ARCH, config.HRL_ACTION_SIZE],
-    ibottleneck=None)
+def HighLevelActor(ec_size):
+    return Actor(
+        config.HRL_ACTION_SIZE,
+        layers = [ec_size+config.CORE_GOAL_SIZE, *config.HI_ARCH, config.HRL_ACTION_SIZE],
+        ibottleneck=None)
 
-LowLevelActor = lambda ec_size: Actor(
-    config.ACTION_SIZE,
-    layers = [ec_size+config.HRL_ACTION_SIZE, *config.LO_ARCH, config.ACTION_SIZE],
-    ibottleneck=action_to_goal_enc)
+def LowLevelActor(ec_size):
+    return Actor(
+        config.ACTION_SIZE,
+        layers = [ec_size+config.HRL_ACTION_SIZE, *config.LO_ARCH, config.ACTION_SIZE],
+        ibottleneck=action_to_goal_enc)
 
 def Critic(ec_size):
     return lambda: model.Critic(1, 1, 
@@ -51,7 +59,7 @@ def Critic(ec_size):
             config.HI_ARCH,
             ibottleneck=action_to_goal_enc)
 
-goal_encoder_ex = GoalGlobalNorm(config.CORE_ORIGINAL_GOAL_SIZE).to(config.DEVICE)# if not config.ERGOJR else GoalIdentity(HL_GOAL_SIZE)
+goal_encoder_ex = GoalGlobalNorm(config.CORE_ORIGINAL_GOAL_SIZE)#.to(config.DEVICE)# if not config.ERGOJR else GoalIdentity(HL_GOAL_SIZE)
 goal_encoder_ex.share_memory()
 class GlobalNormalizerWithTimeEx(IEncoder):
     def __init__(self, size_in, lowlevel):
@@ -63,6 +71,11 @@ class GlobalNormalizerWithTimeEx(IEncoder):
         
         self.add_module("enc", enc)
         self.add_module("goal_encoder", goal_encoder_ex)
+
+    def stop_norm(self):
+        self.enc.stop_norm()
+    def active(self):
+        return self.enc.active()
 
     def forward(self, states, memory):
         states = states.to(self.device())
@@ -120,7 +133,7 @@ def new_agent(
     goal_size, state_size,
     good_reach=1, model_path="checkpoints", save=False, load=False,
     eval_delay=60, eval_limit=10, dbg=False,
-    recalc_per_push=None, fast_fail=False
+    recalc_per_push=None, fast_fail=False, full_model=None
     ):
 
     goal_encoder.share_memory()
@@ -135,7 +148,6 @@ def new_agent(
     experience = lambda descs, brain: MemoryBoost(descs, memory, credit_assign, brain, good_reach, recalc_per_episode=1, recalc_per_push=recalc_per_push)
 
     agent = Agent(
-        config.DEVICE,
         brains, experience,
         Actor=actor, Critic=critic, 
         goal_encoder=goal_encoder, encoder=encoder, 
@@ -149,6 +161,7 @@ def new_agent(
         model_path=model_path, save=save, load=load, delay=10,
         min_n_sim=config.MIN_N_SIM,
         loss_callback=None,#loss_callback,
+        full_model=full_model
     )
 
     # defined above
@@ -161,7 +174,13 @@ def new_agent(
     
     return agent, env
     
-def install_lowlevel(low_level_task, Her):
+class LLFetch(Task):
+    def goal_met(self, _total_reward, _last_reward):
+        return False
+
+from hrl import ReacherHRL
+
+def install_lowlevel(low_level_task, fm, do_sampling):
     KEYID = config.PREFIX+"_ll"
     RECALC_PER_PUSH = 20
     LL_GOAL_SIZE = config.HRL_ACTION_SIZE
@@ -172,11 +191,13 @@ def install_lowlevel(low_level_task, Her):
     ll_state_encoder = GlobalNormalizerWithTimeEx(LL_STATE_SIZE, True)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
     state_encoder = ll_state_encoder#IdentityEncoder(LL_STATE_SIZE)
 
-    senv = make_env(False, config.ENV_NAME)
-    for seed in range(100):
-        do_sample(senv, seed, goal_encoder, state_encoder)
+    if do_sampling:
+        senv = make_env(False, config.ENV_NAME)
+        for seed in range(100):
+            do_sample(senv, seed, goal_encoder, state_encoder)
+    state_encoder.stop_norm()
 
-    delay = 10
+    delay = 10 // config.HRL_STEP_COUNT
     repeat = 10
     optim_n = 1
 
@@ -184,7 +205,7 @@ def install_lowlevel(low_level_task, Her):
             BrainDescription(
                 memory_size=1 * config.MIN_N_SIM * LL_MAX_STEPS, batch_size=config.LL_BATCH_SIZE,
                 optim_pool_size = 1 * config.MIN_N_SIM * RECALC_PER_PUSH * config.HRL_HIGH_STEP,
-                optim_epochs=repeat // optim_n, optim_batch_size=2*config.LL_BATCH_SIZE, recalc_delay=7,
+                optim_epochs=10, optim_batch_size=2*config.LL_BATCH_SIZE, recalc_delay=7,
                 lr_actor=3e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,
                 sync_delta_a=3, sync_delta_c=2, tau_actor=5e-2, tau_critic=5e-2,
@@ -192,7 +213,7 @@ def install_lowlevel(low_level_task, Her):
     ]
     print("\nLOW LEVEL POLICY: \n", [b for b in brain])
 
-    credit_assign = [ Her(her_delay=0,
+    credit_assign = [ ReacherHRL(her_delay=0,
         cind=0, gae=config.GAE, n_step=config.HRL_LOW_N_STEP, floating_step=config.FLOATING_STEP, 
         gamma=config.GAMMA, gae_tau=.95, 
         her_select_ratio = config.HER_RATIO, resampling=False, kstep_ir=False, clip=2e-1) ]
@@ -207,15 +228,12 @@ def install_lowlevel(low_level_task, Her):
         goal_size=LL_GOAL_SIZE, state_size=LL_STATE_SIZE,
         good_reach=LL_MAX_STEPS, model_path=KEYID+"_checkpoints", save=config.SAVE, load=config.LOAD,
         eval_delay=None, eval_limit=1, dbg=False,
-        recalc_per_push=RECALC_PER_PUSH,
+        recalc_per_push=RECALC_PER_PUSH, full_model=fm
         )
 
 # TEMPORARERLY for hrl.py to allow dream with high level policy
     config.AGENT.append(agent)#.insert(0, agent)
 
-    class LLFetch(Task):
-        def goal_met(self, _total_reward, _last_reward):
-            return False
     task = LLFetch(lambda : low_level_task)
 
     return env, task
@@ -223,11 +241,24 @@ def install_lowlevel(low_level_task, Her):
 class ReacherCreditAssignment(CreditAssignment):
     def update_goal(self, rewards, goals, states, states_1, n_goals, n_states, actions, her_step_inds, n_steps, allowed_mask):
         return ( rewards, goals, states, n_goals, n_states, allowed_mask )
+
+class HLFetch(Task):
+    def goal_met(self, total_reward, last_reward):
+        return last_reward > -config.HRL_STEP_COUNT / 2.
+        if config.ERGO_REACHER:
+            if last_reward < -3.:
+                return False
+            return total_reward > -config.HRL_STEP_COUNT * config.HRL_HIGH_STEP / 3.
+
+        return 0 == last_reward[0] # quite though for bigger low step policy to manage
     
 import gym
 def do_sample(env, seed, goal_encoder, encoder):
     env.seed(seed)
     obs = env.reset()
+
+    if not encoder.active():
+        return
 
     for _ in range(config.HRL_HIGH_STEP * config.HRL_STEP_COUNT):
         obs, _, done, _ = env.step(env.action_space.sample())
@@ -240,9 +271,10 @@ def do_sample(env, seed, goal_encoder, encoder):
                 ]
 
         state = np.concatenate([positions[random.randint(0, 1)], obs['observation'], positions[random.randint(0, 1)]])
-        encoder(torch.from_numpy(state).view(1, -1).float().to(config.DEVICE), torch.zeros(1).to(config.DEVICE))
+#        encoder(torch.from_numpy(state).view(1, -1).float().to(config.DEVICE), torch.zeros(1).to(config.DEVICE))
+        encoder(torch.from_numpy(state).view(1, -1).float(), torch.zeros(1))
     
-def install_highlevel(high_level_task, keyid):
+def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     HL_GOAL_SIZE = config.CORE_GOAL_SIZE
     HL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     HL_MAX_STEPS = config.HRL_HIGH_STEP
@@ -262,7 +294,7 @@ def install_highlevel(high_level_task, keyid):
             BrainDescription( # master :: PPO
                 memory_size=1 * config.MIN_N_SIM * HL_MAX_STEPS, batch_size=config.HL_BATCH_SIZE,
                 optim_pool_size = 1 * config.MIN_N_SIM * RECALC_PER_PUSH * HL_MAX_STEPS,
-                optim_epochs=1, optim_batch_size=2*config.HL_BATCH_SIZE, recalc_delay=3,
+                optim_epochs=10, optim_batch_size=2*config.HL_BATCH_SIZE, recalc_delay=3,
                 lr_actor=1e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,#110,
                 sync_delta_a=3, sync_delta_c=2, tau_actor=7e-2, tau_critic=5e-2,
@@ -286,24 +318,16 @@ def install_highlevel(high_level_task, keyid):
         goal_size=HL_GOAL_SIZE, state_size=HL_STATE_SIZE,
         good_reach=HL_MAX_STEPS, model_path=keyid+"_checkpoints", save=config.SAVE, load=config.LOAD,
         eval_delay=4, eval_limit=10, dbg=True,
-        recalc_per_push=RECALC_PER_PUSH)
+        recalc_per_push=RECALC_PER_PUSH, full_model=fm)
 
     config.AGENT.append(agent)#.insert(0, agent)
 
-    senv = make_env(False, config.ENV_NAME)
-    for seed in range(100):
-        do_sample(senv, seed, goal_encoder, state_encoder)
+    if do_sampling:
+        senv = make_env(False, config.ENV_NAME)
+        for seed in range(100):
+            do_sample(senv, seed, goal_encoder, state_encoder)
     goal_encoder.stop_norm()
-
-    class HLFetch(Task):
-        def goal_met(self, total_reward, last_reward):
-            return last_reward > -config.HRL_STEP_COUNT / 2.
-            if config.ERGO_REACHER:
-                if last_reward < -3.:
-                    return False
-                return total_reward > -config.HRL_STEP_COUNT * config.HRL_HIGH_STEP / 3.
-
-            return 0 == last_reward[0] # quite though for bigger low step policy to manage
+    state_encoder.stop_norm()
 
     task = HLFetch(lambda : high_level_task)
     return env, task

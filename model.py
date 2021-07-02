@@ -13,6 +13,9 @@ from collections import OrderedDict
 from config import CORE_GOAL_SIZE, CORE_STATE_SIZE, HRL_ACTION_SIZE, CORE_ORIGINAL_GOAL_SIZE
 import config
 
+def move_tensor(x):
+    return x
+
 class Actor(nn.Module): # decorator
     def __init__(self, net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale=False):
         super().__init__()
@@ -22,15 +25,16 @@ class Actor(nn.Module): # decorator
         if ibottleneck is not None:
             self.add_module("ibottleneck", ibottleneck)
         else:
-            self.ibottleneck = lambda x: x.to(self.device())
+            self.ibottleneck = move_tensor
 
         self.register_parameter("dummy_param", nn.Parameter(torch.empty(0)))
     def device(self):
         return self.dummy_param.device
 
     def forward(self, goals, states):
-        assert torch.float32 == goals.dtype
-        goal = self.ibottleneck(goals.to(self.device()))
+        #assert torch.float32 == goals.dtype
+        with torch.no_grad():
+            goal = self.ibottleneck(goals.to(self.device()))
 
         state = states[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT] # SKIP timefeature, duplicates achieved goal + goal
         if config.BLIND:
@@ -71,9 +75,12 @@ class ActorFactory: # proxy
 #                ll[0] = 6 + config.HRL_GOAL_SIZE
 
 
-        self.factory = NoisyNetFactory(ll)
-        self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
+        net = nn.Sequential(*[ nn.Linear(layer, ll[i+1]) for i, layer in enumerate(ll[:-1]) ])
+        self.actor = lambda : Actor(net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
+#        self.factory = NoisyNetFactory(ll)
+#        self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
     def head(self):
+        return self.actor()
         return self.actor(self.factory.head())
 
 import numpy as np
@@ -117,8 +124,6 @@ class Critic(nn.Module):
 
                     ])
                 )
-        print(self.net)
-
         self.apply(initialize_weights)
         self.net[-1].weight.data.uniform_(-3e-3, 3e-3) # seems this works better ? TODO : proper tests!!
 
@@ -127,7 +132,7 @@ class Critic(nn.Module):
         return self.dummy_param.device
 
     def forward(self, goals, states, actions):
-        assert torch.float32 == goals.dtype
+        #assert torch.float32 == goals.dtype
         goals = self.ibottleneck(goals.to(self.device()))
         states = states[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE]#config.TIMEFEAT] # SKIP GOAL and timefeature from value, leaving timefeature only for LL Actor
 

@@ -117,9 +117,15 @@ class GlobalNormalizerWGrads(IEncoder):
         super().__init__(size_in=size_in*n_history, size_out=size_in*n_history, n_features=1)
         self.norm = Normalizer(self.size_in)
         self.add_module("norm", self.norm)
+        self.stop = False
+    def stop_norm(self):
+        self.stop = True
+    def active(self):
+        return not self.stop
     def forward(self, states, memory):
         states = states.to(self.device())
-        self.norm.update(states)
+        if not self.stop:
+            self.norm.update(states)
         return self.norm.normalize(states).view(-1, self.size_out), memory.to(self.device())
 class GlobalNormalizer(GlobalNormalizerWGrads):
     def __init__(self, size_in, n_history):
@@ -144,6 +150,8 @@ class GoalGlobalNorm(nn.Module):
 
     def stop_norm(self):
         self.stop = True
+    def active(self):
+        return not self.stop
     def forward(self, states):
         self.cnt += 1
         shape = states.size()

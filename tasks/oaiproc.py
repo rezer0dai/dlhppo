@@ -53,7 +53,7 @@ class GymProxy(Process):
         self.port = port
         self.env_name = env_name
 
-        self.name = "%s_gym_dock_%i"%(prefix, ind)
+        self.name = "%s_gym_dock_%i_%s"%(prefix, ind, dock)
 
     def run(self):
         self.cmd = { 
@@ -74,7 +74,6 @@ class GymProxy(Process):
         return self._reset(0)
 
     def _reset(self, seed):
-#        print(self.name, "reset /w seed ", seed)
         if seed: self.env.seed(seed)
         return (self.env.reset(), 0, False, None)
 
@@ -88,9 +87,11 @@ class GymProxy(Process):
         return self.data.get()
 
     def make(self):
-        return self._do("create", self.env_name, False)
+        out = self._do("create", self.env_name, False)
+        return out
 
     def reset(self, seed):
+        #print(self.name, "reset /w seed ", seed)
         self.packets = [seed]
         return self._do("reset", seed, False)
 

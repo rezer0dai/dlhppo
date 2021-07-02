@@ -222,8 +222,8 @@ class Env:
 
                 log_prob, pi, goal, state, f_pi, action, reward, good = data
 
-                if not len(scores): # only first round of mcts we want to learn!
-                    self.agent.step(self.step_count)
+#                if not len(scores): # only first round of mcts we want to learn!
+#                    self.agent.step(self.step_count)
 
                 actions.append(pi)
                 probs.append(log_prob)

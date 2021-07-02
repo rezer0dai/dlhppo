@@ -1,7 +1,7 @@
 import torch
 
 import random
-from timebudget import timebudget
+#from timebudget import timebudget
 
 import sys
 
@@ -72,7 +72,7 @@ class FastMemory:
 #                        ] for i in range(len(self.chunks)-1) ],
 #                        [-1, epoch - 1 if 0 != epoch else self.desc.optim_epochs ])
 
-        with timebudget("FastMemory-sample"):
+        if True:#with timebudget("FastMemory-sample"):
             if -1 == beg:
                 beg = random.randint(0, self.sentinel - 1 - min(self.sentinel-1-1, self.desc.optim_batch_size))
 
@@ -82,7 +82,7 @@ class FastMemory:
             start = beg + delta
             end = start + min(self.desc.batch_size, space - 2)
 
-            with timebudget("FastMemory-sample::INDEXING"):
+            if True:#with timebudget("FastMemory-sample::INDEXING"):
                 return (None, [
                     self.memory[start:end, sum(self.chunks[:i+1]):sum(self.chunks[:i+2])
                     ] for i in range(len(self.chunks)-1) ], 

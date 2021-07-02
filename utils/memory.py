@@ -21,7 +21,8 @@ class Memory:
         self.allowed_mask.extend(allowed_mask)
         self._sync(experience)
 
-        self.memory = torch.cat([self.memory, experience]).to(experience.device) if len(self.memory) else experience
+#        self.memory = torch.cat([self.memory, experience]).to(experience.device) if len(self.memory) else experience
+        self.memory = torch.cat([self.memory, experience]).type_as(experience) if len(self.memory) else experience
 
         assert len(self.memory) == len(self.back_pointers)
         assert len(self.memory) == len(self.allowed_mask)

@@ -14,16 +14,16 @@ class BrainOptimizer:
         self.natural = desc.natural
         self.brain = brain
 
-        print("BRAIN OPTIM : ", brain.mp)
-        if self.natural:
-            self.actor_optimizer = NGDOptim(
-                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, momentum=.7, nesterov=True)
-        else:
-            self.actor_optimizer = optim.AdamW(
-#            self.actor_optimizer = optim.SGD(#
-#            self.actor_optimizer = optim.RMSprop(
-                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, weight_decay=config.WD, eps=1e-5)
-
+#        print("BRAIN OPTIM : ", brain.mp)
+#        if self.natural:
+#            self.actor_optimizer = NGDOptim(
+#                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, momentum=.7, nesterov=True)
+#        else:
+#            self.actor_optimizer = optim.AdamW(
+##            self.actor_optimizer = optim.SGD(#
+##            self.actor_optimizer = optim.RMSprop(
+#                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, weight_decay=config.WD, eps=1e-5)
+#
 #        limit = config.HRL_HIGH_STEP * desc.sync_delta_a * config.TOTAL_ROUNDS // (desc.learning_delay // config.HRL_HIGH_STEP)
 #        frac = lambda epoch: (1. - (epoch - 1.) / limit) if epoch < limit else 1e-2
 #        self.lr = optim.lr_scheduler.LambdaLR(self.actor_optimizer, frac)
@@ -69,4 +69,4 @@ class BrainOptimizer:
 
         #print("\n ---> ", self.steps, self.actor_optimizer.param_groups[0]["lr"])
 
-        return pi_loss, self.actor_optimizer
+        return pi_loss, None#self.actor_optimizer

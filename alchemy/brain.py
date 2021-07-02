@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-torch.set_default_dtype(torch.float32)
+#torch.set_default_dtype(torch.float16)
 
 from utils.ac import *
 
@@ -16,14 +16,13 @@ from utils.polyak import POLYAK as META
 #from utils.foml import FOML as META
 #from utils.reptile import REPTILE as META
 
-from timebudget import timebudget
+#from timebudget import timebudget
 import logging
 
 def def_loss_callback(pi_loss, critic_loss, *x): return pi_loss, critic_loss
 
 class Brain(META):
     def __init__(self,
-            device,
             Actor, Critic, encoder, goal_encoder,
             n_agents, 
             n_actors, detach_actors, n_critics, detach_critics,
@@ -31,7 +30,8 @@ class Brain(META):
             resample_delay,
             lr_critic, clip_norm, q_clip,
             model_path, save, load, delay,
-            loss_callback = None,
+            loss_callback,
+            full_model
             ):
         super().__init__(model_path, save, load, delay)
 
@@ -57,30 +57,33 @@ class Brain(META):
 
         self.n_agents = 0
         self.global_id = "_hl_" in self.mp
+        self.full_model = full_model
 
         nes = Actor()
 # TODO i reversed here detached logic from target to behaviour
-        self.ac_explorer = ActorCritic(encoder, goal_encoder,
+        self.ac_explorer = ActorCritic(full_model, encoder, goal_encoder,
                     [ nes.head() for _ in range(n_actors) ],
-                    [ Critic() for _ in range(n_critics) ], n_agents, False, self.global_id).to(device)
+                    [ Critic() for _ in range(n_critics) ], n_agents, False, self.global_id)
 
-        self.ac_target = ActorCritic(encoder, goal_encoder,
+        self.ac_target = ActorCritic(full_model, encoder, goal_encoder,
                     [ Actor().head() for _ in range(1 if not detach_actors else n_actors) ],
-                    [ Critic() for _ in range(1 if not detach_critics else n_critics) ], n_agents, True, self.global_id).to(device)
+                    [ Critic() for _ in range(1 if not detach_critics else n_critics) ], n_agents, True, self.global_id)
 
-        print(self.ac_target)
-        print(self.ac_explorer)
+        #print(self.ac_target)
+        #print(self.ac_explorer)
         # sync
-        for explorer in self.ac_explorer.critic:
-            self.polyak_update(self.ac_target.critic[0].parameters(), explorer, 1.)
+        for i in range(self.ac_explorer.n_critics):
+            self.polyak_update(self.tcp(0), self.ecp(i), 1.)
 #
-        for explorer in self.ac_explorer.actor:
-            self.polyak_update(self.ac_target.actor[0].parameters(), explorer, 1.)
+        for i in range(self.ac_explorer.n_actors):
+            self.polyak_update(self.tap(0), self.eap(i), 1.)
 
         #  self.init_meta(lr=1e-3)
 
         self.load_models(0, "eac")
         self.save_models_ex(0, "eac")
+
+        return
 
         print("--->", n_critics, n_actors, len(self.ac_explorer.critic), len(self.ac_explorer.actor), len(self.ac_target.critic), len(self.ac_target.actor))
 
@@ -89,18 +92,19 @@ class Brain(META):
 
         self.resample(0)
 
-    @timebudget
-    def learn(self, batches, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):
-        batch = batches()
-        while batch[-1] is not None:
+    def tcp(self, ind): return self.full_model.critic_target_parameters(ind, "highpi" if self.global_id else "lowpi")
+    def ecp(self, ind): return self.full_model.critic_explorer_parameters(ind, "highpi" if self.global_id else "lowpi")
+    def tap(self, ind): return self.full_model.actor_target_parameters(ind, "highpi" if self.global_id else "lowpi")
+    def eap(self, ind): return self.full_model.actor_explorer_parameters(ind, "highpi" if self.global_id else "lowpi")
 
-            self._learn(batch[:-1], sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors)
+    #@timebudget
+    def learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):
+        loss = self._learn(batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors)
+        return loss
 
-            batch = batches(*batch[-1])
-
-    @timebudget
+    #@timebudget
     def _learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):
-        with timebudget("_learn_debatch"):
+        if True:#with timebudget("_learn_debatch"):
             w_is, (goals, states, memory, actions, old_probs, _, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
 
         if not len(goals):
@@ -117,7 +121,7 @@ class Brain(META):
 
         clip = 2e-1
 
-        with timebudget("_learn_future"):
+        if True:#with timebudget("_learn_future"):
     # SELF-play ~ get baseline
             with torch.no_grad():
                 n_qa, n_dist = self.ac_target.suboptimal_qa(n_goals, n_states, n_memory)
@@ -127,9 +131,9 @@ class Brain(META):
             # TD(0) with k-step estimators
             td_targets = n_rewards + n_discounts * n_qa
 
-        with timebudget("_learn_backprop"):
+        if True:#with timebudget("_learn_backprop"):
     #        if "lowlevel" in self.mp and random.random() < .1:
-            for s in range(sync_delta_a):
+            if True:#for s in range(sync_delta_a):
 
     # activate gradients ~ SELF-play
                 pi_loss = []
@@ -151,37 +155,52 @@ class Brain(META):
 
                 pi_loss, critic_loss = self.loss_callback(pi_loss, critic_loss, self, actions, goals, states, memory, qa_stable, n_dist)
 
-                self.backprop(self.full_optimizer, .5 * (pi_loss + critic_loss), self.ac_explorer.parameters())
+#                self.register_loss(.5 * (pi_loss + critic_loss))
 
-                if self.tpu_callback is not None:
-                    self.tpu_callback(self.full_optimizer)
+#                self.backprop(self.full_optimizer, .5 * (pi_loss + critic_loss), self.ac_explorer.parameters())
 
-        with timebudget("_learn_meta"):
+#                if self.tpu_callback is not None:
+#                    self.tpu_callback(self.full_optimizer)
+
+
+        if True:#with timebudget("_learn_meta"):
             # propagate updates to target network ( network we trying to effectively learn )
-            for _, target in enumerate(self.ac_target.critic):
+#            for _, target in enumerate(self.ac_target.critic):
+            for citd in range(self.ac_target.n_critics):
                 if not sync_delta_c:
                     break
-                cind = random.randint(0, len(self.ac_explorer.critic)-1)
+                cied = random.randint(0, self.ac_explorer.n_critics-1)
+
+                target = self.tcp(citd)
+                explorer = self.ecp(cied)
+
                 self.meta_update(
-                        cind,
-                        self.ac_explorer.critic[cind].parameters(),
+                        None,
+                        explorer,#self.ac_explorer.critic[cind].parameters(),
                         target,
                         tau_critic)
 
 #            assert sync_delta_a
             # propagate updates to actor target network ( network we trying to effectively learn )
-            for _, target in enumerate(self.ac_target.actor):
+#            for _, target in enumerate(self.ac_target.actor):
+            for aitd in range(self.ac_target.n_actors):
 #                break
 #                for actor in self.ac_explorer.actor:
-                tind = random.randint(0, len(self.ac_explorer.actor)-1)
+                aied = random.randint(0, self.ac_explorer.n_actors-1)
+
+                target = self.tap(aitd)
+                explorer = self.eap(aied)
+
                 self.meta_update(
-                        tind,
-                        self.ac_explorer.actor[tind].parameters(),##actor.parameters(),
+                        None,
+                        explorer,#self.ac_explorer.actor[tind].parameters(),##actor.parameters(),
                         target,#self.ac_target.actor[tind],
                         tau_actor)
 #                break
 
         self.save_models(0, "eac")
+
+        return (pi_loss + critic_loss) * .5
 
         if random.random() < .1 and sync_delta_c:
             aa = torch.cat([p.view(-1) for p in config.AGENT[0].brain.ac_explorer.critic_parameters(-1)]).sum()
@@ -199,6 +218,7 @@ class Brain(META):
             logging.warning(msg)
 
     def resample(self, t):
+        return#TODO
         if 0 != t % self.resample_delay:
             return
         for actor in self.ac_explorer.actor:
@@ -225,7 +245,7 @@ class Brain(META):
         with torch.no_grad():
             return self.ac_target.qa_stable(goals, states, memory, actions, -1)
 
-    @timebudget
+    #@timebudget
     def backprop(self, optim, loss, params, callback=None, just_grads=False, retain_graph=False):
         # learn
         optim.zero_grad() # scatter previous optimizer leftovers
@@ -240,9 +260,9 @@ class Brain(META):
         else:
             optim.step() # trigger backprop
 
-    @timebudget
+    #@timebudget
     def recalc_feats(self, goals, states, actions, e_log_probs, n_steps, resampling, kstep_ir, tind, clip):
-        return torch.zeros(len(goals), 1).to(goals.device), torch.ones(len(goals), 1).to(goals.device)
+        return torch.zeros(len(goals), 1).type_as(goals), torch.ones(len(goals), 1).type_as(goals)
 
         with torch.no_grad():
             _, f = self.ac_target.encoder.extract_features(states)
@@ -274,9 +294,11 @@ class Brain(META):
         return f, ir_ratio
 
     def freeze_encoders(self):
+        return
         self.ac_explorer.freeze_encoders()
         self.ac_target.freeze_encoders()
 
     def unfreeze_encoders(self):
+        return
         self.ac_explorer.unfreeze_encoders()
         self.ac_target.unfreeze_encoders()

@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 from utils.fastmem import *
-from timebudget import timebudget
+#from timebudget import timebudget
 
 class MemoryBoost:
     def __init__(self, descs, memory, credit_assign, brain, good_reach, recalc_per_episode, recalc_per_push):
@@ -35,7 +35,7 @@ class MemoryBoost:
             return _update
 
         def dream():
-            with timebudget("FullMemory-dream"):
+            if True:#with timebudget("FullMemory-dream"):
                 self.memory.dream(update(ind), desc.memory_size)
                 #print("DREAM SHUFFLING")
                 self.fast_m[ind].shuffle()
@@ -46,7 +46,7 @@ class MemoryBoost:
 
         return self.fast_m[ind].sample
 
-    @timebudget
+    #@timebudget
     def _push_to_fast(self, recalc_feats, ind, indices, allowed_mask, episode):
         goals, states, memory, actions, probs, rewards, _, _, _, _, _ = episode
         values = self.brain.qa_future(goals, states, memory, actions, ind)
@@ -67,7 +67,7 @@ class MemoryBoost:
 
         return episode_
 
-    @timebudget
+    #@timebudget
     def _push(self, ind, ep, chunks, e_i, goods):
         max_allowed = len(ep) - 1
         allowed_mask = [ bool(sum(goods[
@@ -81,7 +81,7 @@ class MemoryBoost:
         recalc = False
         for j in range(self.recalc_per_push):
             recalc = (0 == ind and self.recalc_per_push - 1 == j)
-            with timebudget("credit-assign"):
+            if True:#with timebudget("credit-assign"):
                 _, ir, episode, allowed_mask_ = self.credit[ind]( # it is double
                             goals, states, memory, actions, probs, rewards,
                             allowed_mask,
@@ -100,7 +100,7 @@ class MemoryBoost:
         assert recalc
         self.memory.push(episode, allowed_mask)
 
-    @timebudget
+    #@timebudget
     def shuffle(self):
 #        print("AFTER PUSH")
         for fast_m in self.fast_m:

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 
-from timebudget import timebudget
+#from timebudget import timebudget
 
 #TODO : KICK OUT
 import config
@@ -164,7 +164,7 @@ class GAE:
     def gae_discount(self, n_steps):
         return [ self.gamma*((self.gamma * self.tau)**(n-1)) for n in n_steps ]
 
-    @timebudget
+    #@timebudget
     def __call__(self, n_steps, rewards, values):
         return self.gae_discount(n_steps), self.gae(n_steps, rewards, values)
 
@@ -185,6 +185,6 @@ class KSTEP:
     def k_discount(self, n_steps):
         return [ self.gamma**n for n in n_steps ]
 
-    @timebudget
+    #@timebudget
     def __call__(self, n_steps, rewards):
         return self.k_discount(n_steps), self.k_step(n_steps, rewards)

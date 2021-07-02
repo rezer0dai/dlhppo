@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 
 import numpy as np
+import random
 
 import config # TODO KICK OUT
 
@@ -20,13 +21,20 @@ class NoisyLinear(nn.Linear):
     def __init__(self, in_features, out_features):
         super().__init__(in_features, out_features, bias=False)
 
-        self.register_buffer('noise', torch.zeros(out_features, in_features))
+        self.noise = torch.zeros(out_features, in_features)
+        self.noise.requires_grad = False
+        self.noise_shape = (out_features, in_features)
 
         self.apply(initialize_weights)
 
-    def forward(self, sigma, data):
+    def forward(self, sigma, data, noise):
+        noise = False
         #print("\n wow xxx", sigma.device, data.device, self.noise.device)
-        return F.linear(data, self.weight + sigma * Variable(self.noise).to(sigma.device))
+        if noise:
+            return F.linear(data, self.weight + sigma * Variable(torch.randn(*self.noise_shape)).to(sigma.device))
+        else:
+#            return F.linear(data, self.weight + sigma * Variable(self.noise).to(sigma.device))
+            return F.linear(data, self.weight + sigma)
 
     def sample_noise(self):
         torch.randn(self.noise.size(), out=self.noise)
@@ -38,6 +46,8 @@ class NoisyLinear(nn.Linear):
 class NoisyNet(nn.Module):
     def __init__(self, layers):
         super().__init__()
+        self.count = 0
+
         # TODO : properly expose interface to remove/select noise in selective way
         self.layers = layers
 
@@ -59,7 +69,10 @@ class NoisyNet(nn.Module):
             for j, p in enumerate(layer.parameters()):
                 self.register_parameter("neslayer_%i_%i"%(i, j), p)
 
+        self.noise = -1
+
     def sample_noise(self, i):
+        self.noise = i % len(self.layers)
         self.layers[i % len(self.layers)].sample_noise()
 
     def remove_noise(self):
@@ -67,15 +80,19 @@ class NoisyNet(nn.Module):
             layer.remove_noise()
 
     def forward(self, data):
+        self.count += 1
+        if 0 == self.count % 2:
+            self.sample_noise(random.randint(0, 100))
+
         #print("\n ..... ", self.sigma_0.device)
         for i, layer in enumerate(self.layers[:-1]):
             if self.relu:
-                data = F.selu(layer(self.sigma[i], data))
+                data = F.selu(layer(self.sigma[i], data, i == self.noise))
 #                x = layer(self.sigma[i], data)
 #                data = x * torch.tanh(F.softplus(x))
             else:
-                data = torch.tanh(layer(self.sigma[i], data))
-        return self.layers[-1](self.sigma[-1], data)
+                data = torch.tanh(layer(self.sigma[i], data, i == self.noise))
+        return self.layers[-1](self.sigma[-1], data, i == self.noise)
 
 class NoisyNetFactory:
     def __init__(self, layers):
