@@ -95,7 +95,7 @@ class Agent:
             loss_callback=loss_callback,
             full_model=full_model
             )
-        self.brain.share_memory() # at this point we dont know if this is needed
+        #self.brain.share_memory() # at this point we dont know if this is needed
 
         self.bd_desc = brains
         self.algo = [ BrainOptimizer(self.brain, desc) for desc in self.bd_desc ]

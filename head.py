@@ -136,8 +136,8 @@ def new_agent(
     recalc_per_push=None, fast_fail=False, full_model=None
     ):
 
-    goal_encoder.share_memory()
-    encoder.share_memory()
+    #goal_encoder.share_memory()
+    #encoder.share_memory()
 
     # g, s, f, a, p, r, n_g, n_s, n_f, c, d
     memory = Memory(brains[0].memory_size, recalc_feats_delay=10000, chunks=[

@@ -49,8 +49,8 @@ class Brain(META):
         self.n_actors = n_actors
         self.stable_probs = stable_probs
 
-        encoder.share_memory()
-        goal_encoder.share_memory()
+        #encoder.share_memory()
+        #goal_encoder.share_memory()
 
         if save:
             Path(model_path).mkdir(parents=True, exist_ok=True)

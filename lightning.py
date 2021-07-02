@@ -12,6 +12,8 @@ from torch.utils.data.dataset import IterableDataset
 class RLDummyDataSet(IterableDataset):
     def __iter__(self):
         yield []
+    def __len__(self):
+        return 1024 * 8
             
 import pytorch_lightning as pl
 
