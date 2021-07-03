@@ -193,10 +193,10 @@ class HighLevelCtrlTask:
         if self.lowlevel is None:
             return
         # allow to learn only from eps where we moved
-        print("\n ep selection --->", sum(self.goods))
+        #print("\n ep selection --->", sum(self.goods))
         self.ll_ctrl.set_goods(self.goods)
         for _ in self.lowlevel:
-            print("DO FINISH")
+            pass#print("DO FINISH")
 
     def reset(self, agent, seed, learn_mode):        
         self.learn_mode = learn_mode

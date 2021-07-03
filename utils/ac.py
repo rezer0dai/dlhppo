@@ -18,48 +18,16 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
         self.target = target
 
-#        self.actor = actor
-#TODO oldsxuul->False:#
-        if len(config.AGENT) > 0 and len(config.AGENT) != 2:
-            #TODO REVERSED
-#            if target:#not target:#
-            if (1 != config.N_CRITICS and target) or (1 == config.N_CRITICS and not target):#not target:#
-#                self.critic = config.AGENT[0].brain.ac_target.critic
-                critic = config.AGENT[0].brain.ac_target.critic
-            else:
-#                self.critic = config.AGENT[0].brain.ac_explorer.critic
-                critic = config.AGENT[0].brain.ac_explorer.critic
-#        else:
-#            self.critic = critic
-
         self.n_agents = n_agents
 
-#        if goal_encoder is not None:
-#            self.add_module("goal_encoder", goal_encoder)
-
-#        self.add_module("encoder", encoder)
-
-#        for i, a in enumerate(self.actor):
-#            a.share_memory()
-#            self.add_module("actor_%i"%i, a)
-#        for i, c in enumerate(self.critic):
-#            c.share_memory()
-#            self.add_module("critic_%i"%i, c)
-
-#        self.goal_grads = [] if self.goal_encoder is None else [ p.requires_grad for p in self.goal_encoder.parameters() ]
-#        self.encoder_grads = [ p.requires_grad for p in self.encoder.parameters() ]
 
         for i, a in enumerate(actor):
             full_model.register(self.decorate("actor_%i"%i), a)
 #        self.actor = lambda i: full_model[self.decorate("actor_%i"%i)]
 
-
         if not len(config.AGENT):
             for i, c in enumerate(critic):
                 full_model.register(self.decorate("critic_%i"%i), c)
-#            self.critic = lambda i: full_model[self.decorate("critic_%i"%i)]
-#        else:
-#            self.critic = critic
 
         full_model.register(self.decorate("encoder"), encoder)
         full_model.register(self.decorate("goal_encoder"), goal_encoder)
@@ -76,12 +44,10 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if global_id else "lowpi")
 
     def critic(self, i):
-        with torch.no_grad(): 
-            return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.global_id else not self.target)]
+        return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.global_id else not self.target)]
 
     def actor(self, i):
-        with torch.no_grad(): 
-            return self.full_model[self.decorate("actor_%i"%i)]
+        return self.full_model[self.decorate("actor_%i"%i)]
 
     def encoder(self, x, m):
         with torch.no_grad(): 
@@ -90,45 +56,6 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
     def goal_encoder(self, x):
         with torch.no_grad(): 
             return self.full_model[self.decorate("goal_encoder")](x)
-
-
-#    def parameters(self):
-#        for p in self.actor_parameters():
-#            yield p
-#        for p in self.critic_parameters(-1):
-#            yield p
-#
-## TODO : where to make sense to train encoder -> at Actor, Critic, or both ??
-#    def actor_parameters(self):
-#        for actor in self.actor:
-#            for p in actor.parameters():
-#                yield p
-#
-#        if config.DOUBLE_LEARNING and self.global_id:#False:#
-#            eid = 0#(2 == len(config.AGENT))
-#            for actor in (config.AGENT[eid].brain.ac_explorer.actor if config.DL_EXPLORER else config.AGENT[eid].brain.ac_target.actor):
-#                for p in actor.parameters():
-#                    yield p
-#
-#        if self.goal_encoder is not None:
-#            for p in self.goal_encoder.parameters():
-#                if p.requires_grad:
-#                    yield p
-#
-#    def critic_parameters(self, ind):
-#        c_i = ind if ind < len(self.critic) else 0
-#        for p in self.encoder.parameters():
-#            if p.requires_grad:
-#                yield p
-#        if -1 == ind:
-#            for p in self.critic[self.global_id % len(self.critic)].parameters():
-#                yield p
-##            for critic in self.critic:
-##                for p in critic.parameters():
-##                    yield p
-#        else:
-#            for p in self.critic[c_i].parameters():
-#                yield p
 
     def forward_impl(self, goals, states, memory, a_i, mean_only, probs = None):# = 0):
         assert not mean_only

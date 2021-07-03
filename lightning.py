@@ -96,8 +96,7 @@ class DLPPOHLightning(pl.LightningModule):
         self.env, self.task = install_highlevel(high_level_task, KEYID, self.model)
         self.ready = True
         self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
-        self.env.debug_stats = True
-        self.reward = None
+        #self.env.debug_stats = True
         
     def _training_step(self, rank):
         
@@ -105,10 +104,7 @@ class DLPPOHLightning(pl.LightningModule):
 
 #        print("\n ---> ", torch.cat([ep.view(-1) for ep in self.model.enc_parameters()]).sum(), os.getpid())
 
-        reward = None
         while True:
-            if reward is not None:
-                self.reward = reward
             loss = self.task.ENV.ll_env.agent.step(True)
             if loss is not None:
                 return loss
@@ -118,6 +114,7 @@ class DLPPOHLightning(pl.LightningModule):
                 break
             data, acu_reward = next(self.playground, (None, None))
             if data is not None:
+                self.reward = data[6]
                 continue
 
             self.count += 1
@@ -128,7 +125,7 @@ class DLPPOHLightning(pl.LightningModule):
                 self.print(msg)
 
             self.print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
-              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean() if self.reward is not None else None))
+              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean())
             self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
         return loss
         

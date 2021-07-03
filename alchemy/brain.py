@@ -109,7 +109,7 @@ class Brain(META):
             if self.global_id:
                 return self.full_model.critic_target_parameters(0, "lowpi")
             return self.full_model.critic_explorer_parameters(0, "lowpi")
-        return self.full_model.critic_target_parameters(self.global_id, "lowpi")
+        return self.full_model.critic_explorer_parameters(self.global_id, "lowpi")
 
     #@timebudget
     def learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):

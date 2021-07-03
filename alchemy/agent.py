@@ -200,7 +200,7 @@ class Agent:
             n_pushed += 1
 #            print("NEXT", e_i, sum(goods[:, e_i]), len(goods), self.n_approved_simulations)
 
-        print("\n PUSH ", n_pushed, len(full_batch))
+        if len(full_batch) != n_pushed: print("\n PUSH ", n_pushed, len(full_batch))
 
         self.exps.shuffle()
 
