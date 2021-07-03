@@ -128,7 +128,7 @@ class DLPPOHLightning(pl.LightningModule):
                 self.print(msg)
 
             self.print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
-              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean() if self.rewarad is not None else None))
+              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean() if self.reward is not None else None))
             self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
         return loss
         
