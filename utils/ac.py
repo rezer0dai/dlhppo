@@ -69,8 +69,10 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
     def decorate(self, sid, global_id=None, target=None):
         if global_id is None:
             global_id = self.global_id
-        if target is None:
-            target = self.target
+
+        if config.N_CRITICS != 1 or target is None:
+            target = self.target # we want this swap only for critic and only if we target exchanged ( HL<->LL ) critic trainig
+
         return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if global_id else "lowpi")
 
     def critic(self, i):
@@ -154,8 +156,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             if config.DL_EXPLORER and config.DOUBLE_LEARNING and not self.target:
                 d, _ = config.AGENT[0].brain.ac_explorer.act(ll_goals, states, memory, -1)
             else:
-                with torch.no_grad():
-                    d, _ = config.AGENT[0].brain.ac_target.act(ll_goals, states, memory, -1)
+                d, _ = config.AGENT[0].brain.ac_target.act(ll_goals, states, memory, -1)
 
 #TODO PROPER TEST
             if config.DOUBLE_LEARNING:

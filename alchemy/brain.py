@@ -92,10 +92,21 @@ class Brain(META):
 
         self.resample(0)
 
-    def tcp(self, ind): return self.full_model.critic_target_parameters(ind, "highpi" if self.global_id else "lowpi")
-    def ecp(self, ind): return self.full_model.critic_explorer_parameters(ind, "highpi" if self.global_id else "lowpi")
     def tap(self, ind): return self.full_model.actor_target_parameters(ind, "highpi" if self.global_id else "lowpi")
     def eap(self, ind): return self.full_model.actor_explorer_parameters(ind, "highpi" if self.global_id else "lowpi")
+
+    def tcp(self, ind):
+        if config.N_CRITICS == 1:
+            if self.global_id:
+                return self.full_model.critic_explorer_parameters(ind, "lowpi")
+        return self.full_model.critic_target_parameters(self.global_id % (config.N_CRITICS - (not config.DETACH_CRITICS)), "lowpi")
+
+    def ecp(self, ind): 
+        if config.N_CRITICS == 1:
+            if self.global_id:
+                return self.full_model.critic_target_parameters(ind, "lowpi")
+            return self.full_model.critic_explorer_parameters(ind, "lowpi")
+        return self.full_model.critic_target_parameters(self.global_id, "lowpi")
 
     #@timebudget
     def learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):

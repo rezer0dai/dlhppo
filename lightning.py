@@ -29,7 +29,7 @@ class FullModel(nn.Module):
     def register(self, name, module):
         if self.done:
             return
-        assert not(name in self.idx)
+        assert not(name in self.idx), name
         self.idx[name] = len(self.mods)
         self.mods.append(module)
         print("appended module", name, self.idx[name])
@@ -38,7 +38,7 @@ class FullModel(nn.Module):
         self.share_memory()
         self.done = True
     def __getitem__(self, name):
-        assert name in self.idx
+        assert name in self.idx, name
         return self.mods[self.idx[name]]
     
     def _params(self, cond):
@@ -124,7 +124,7 @@ class DLPPOHLightning(pl.LightningModule):
             if 0 == self.count % 4:
                 test = next(self.env.evaluate(self.task, None))
                 self.finished = test[0]
-                msg = "\n\n  <{} min>   EVENT TEST : {}".format("%.2f"%((time.time()-self.env_start) / 60), test)
+                msg = "\n\n  <{} min> #{} > ENV TEST : {}".format("%.2f"%((time.time()-self.env_start) / 60), self.count, test)
                 self.print(msg)
 
             self.print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
