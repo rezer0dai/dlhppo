@@ -66,14 +66,16 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
         self.full_model = full_model
 
-    def decorate(self, sid, global_id=None):
+    def decorate(self, sid, global_id=None, target=None):
         if global_id is None:
             global_id = self.global_id
-        return sid+"_%s_%s"%("target" if self.target else "explorer", "highpi" if global_id else "lowpi")
+        if target is None:
+            target = self.target
+        return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if global_id else "lowpi")
 
     def critic(self, i):
         with torch.no_grad(): 
-            return self.full_model[self.decorate("critic_%i"%i, 0)]
+            return self.full_model[self.decorate("critic_%i"%i, 0, target if not self.global_id else not target)]
 
     def actor(self, i):
         with torch.no_grad(): 

@@ -3,7 +3,7 @@ COLAB = True#False#
 LOAD = False#True#
 SAVE = False#True
 
-DOUBLE_LEARNING = False#True# ##### False in second DoubleL because EXPLORER only will be used!!!
+DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
@@ -55,7 +55,7 @@ HRL_HIGH_N_STEP = HRL_HIGH_STEP#40#20#HRL_HIGH_STEP // 10 * 8
 HRL_ACTION_TEST_RATIO = None#.15#1.#
 HRL_HINDSIGHTACTION_HORIZON = HRL_HIGH_STEP * 10#40#100#
 
-MIN_N_SIM = 10#40#80#60#30#20#
+MIN_N_SIM = 100#40#80#60#30#20#
 TOTAL_ENV = MIN_N_SIM#(1 + PUSHER)*MIN_N_SIM
 DEVICE = "cpu"
 
