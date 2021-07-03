@@ -97,15 +97,18 @@ class Brain(META):
 
     def tcp(self, ind):
         if config.N_CRITICS == 1:
+            assert 0 == ind
             if self.global_id:
-                return self.full_model.critic_explorer_parameters(ind, "lowpi")
+                return self.full_model.critic_explorer_parameters(0, "lowpi")
+            return self.full_model.critic_target_parameters(0, "lowpi")
         return self.full_model.critic_target_parameters(self.global_id % (config.N_CRITICS - (not config.DETACH_CRITICS)), "lowpi")
 
     def ecp(self, ind): 
         if config.N_CRITICS == 1:
+            assert 0 == ind
             if self.global_id:
-                return self.full_model.critic_target_parameters(ind, "lowpi")
-            return self.full_model.critic_explorer_parameters(ind, "lowpi")
+                return self.full_model.critic_target_parameters(0, "lowpi")
+            return self.full_model.critic_explorer_parameters(0, "lowpi")
         return self.full_model.critic_target_parameters(self.global_id, "lowpi")
 
     #@timebudget
@@ -313,3 +316,4 @@ class Brain(META):
         return
         self.ac_explorer.unfreeze_encoders()
         self.ac_target.unfreeze_encoders()
+
