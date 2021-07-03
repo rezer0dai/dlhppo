@@ -97,7 +97,7 @@ class DLPPOHLightning(pl.LightningModule):
         self.ready = True
         self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
         self.env.debug_stats = True
-        self.rewar = None
+        self.reward = None
         
     def _training_step(self, rank):
         
