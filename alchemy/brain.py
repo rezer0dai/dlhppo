@@ -78,12 +78,12 @@ class Brain(META):
         for i in range(self.ac_explorer.n_actors):
             self.polyak_update(self.tap(0), self.eap(i), 1.)
 
+        return
         #  self.init_meta(lr=1e-3)
 
         self.load_models(0, "eac")
         self.save_models_ex(0, "eac")
 
-        return
 
         print("--->", n_critics, n_actors, len(self.ac_explorer.critic), len(self.ac_explorer.actor), len(self.ac_target.critic), len(self.ac_target.actor))
 
@@ -109,15 +109,15 @@ class Brain(META):
             if self.global_id:
                 return self.full_model.critic_target_parameters(0, "lowpi")
             return self.full_model.critic_explorer_parameters(0, "lowpi")
-        return self.full_model.critic_target_parameters(self.global_id, "lowpi")
+        return self.full_model.critic_explorer_parameters(self.global_id, "lowpi")
 
     #@timebudget
-    def learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):
-        loss = self._learn(batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors)
+    def learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
+        loss = self._learn(batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors)
         return loss
 
     #@timebudget
-    def _learn(self, batch, sync_delta_a, tau_actor, sync_delta_c, tau_critic, backward_policy, tind, mean_only, separate_actors):
+    def _learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
         if True:#with timebudget("_learn_debatch"):
             w_is, (goals, states, memory, actions, old_probs, _, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
 
@@ -169,52 +169,30 @@ class Brain(META):
 
                 pi_loss, critic_loss = self.loss_callback(pi_loss, critic_loss, self, actions, goals, states, memory, qa_stable, n_dist)
 
-#                self.register_loss(.5 * (pi_loss + critic_loss))
+        target = self.tcp(self.global_id * config.DETACH_CRITICS)
+        explorer = self.ecp(random.randint(0, self.ac_explorer.n_critics-1))
 
-#                self.backprop(self.full_optimizer, .5 * (pi_loss + critic_loss), self.ac_explorer.parameters())
+        self.meta_update(
+                None,
+                explorer,
+                target,
+                tau_critic)
 
-#                if self.tpu_callback is not None:
-#                    self.tpu_callback(self.full_optimizer)
+        for aitd in range(self.ac_target.n_actors):
+            aied = random.randint(0, self.ac_explorer.n_actors-1)
 
+            target = self.tap(aitd)
+            explorer = self.eap(aied)
 
-        if True:#with timebudget("_learn_meta"):
-            # propagate updates to target network ( network we trying to effectively learn )
-#            for _, target in enumerate(self.ac_target.critic):
-            for citd in range(self.ac_target.n_critics):
-                if not sync_delta_c:
-                    break
-                cied = random.randint(0, self.ac_explorer.n_critics-1)
-
-                target = self.tcp(citd)
-                explorer = self.ecp(cied)
-
-                self.meta_update(
-                        None,
-                        explorer,#self.ac_explorer.critic[cind].parameters(),
-                        target,
-                        tau_critic)
-
-#            assert sync_delta_a
-            # propagate updates to actor target network ( network we trying to effectively learn )
-#            for _, target in enumerate(self.ac_target.actor):
-            for aitd in range(self.ac_target.n_actors):
-#                break
-#                for actor in self.ac_explorer.actor:
-                aied = random.randint(0, self.ac_explorer.n_actors-1)
-
-                target = self.tap(aitd)
-                explorer = self.eap(aied)
-
-                self.meta_update(
-                        None,
-                        explorer,#self.ac_explorer.actor[tind].parameters(),##actor.parameters(),
-                        target,#self.ac_target.actor[tind],
-                        tau_actor)
-#                break
-
-        self.save_models(0, "eac")
+            self.meta_update(
+                    None,
+                    explorer,
+                    target,
+                    tau_actor)
 
         return (pi_loss + critic_loss) * .5
+
+        self.save_models(0, "eac")
 
         if random.random() < .1 and sync_delta_c:
             aa = torch.cat([p.view(-1) for p in config.AGENT[0].brain.ac_explorer.critic_parameters(-1)]).sum()

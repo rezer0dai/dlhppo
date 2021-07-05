@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 from utils.nes import *
-from utils.policy import PPOHead
+from utils.policy import PPOHead, DDPGHead
 
 import random
 
@@ -20,7 +20,7 @@ class Actor(nn.Module): # decorator
     def __init__(self, net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale=False):
         super().__init__()
         self.add_module("net", net)
-        self.algo = PPOHead(action_size, f_scale_clip, noise_scale)
+        self.algo = PPOHead(action_size, f_scale_clip, noise_scale) if not config.DDPG or ibottleneck is not None else DDPGHead()
         self.f_mean_clip = f_mean_clip
         if ibottleneck is not None:
             self.add_module("ibottleneck", ibottleneck)
@@ -33,8 +33,7 @@ class Actor(nn.Module): # decorator
 
     def forward(self, goals, states):
         #assert torch.float32 == goals.dtype
-        with torch.no_grad():
-            goal = self.ibottleneck(goals.to(self.device()))
+        goal = self.ibottleneck(goals.to(self.device()))
 
         state = states[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT] # SKIP timefeature, duplicates achieved goal + goal
         if config.BLIND:
@@ -75,12 +74,20 @@ class ActorFactory: # proxy
 #                ll[0] = 6 + config.HRL_GOAL_SIZE
 
 
-        net = nn.Sequential(*[ nn.Linear(layer, ll[i+1]) for i, layer in enumerate(ll[:-1]) ])
-        self.actor = lambda : Actor(net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
-#        self.factory = NoisyNetFactory(ll)
-#        self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
+        layers = [l for layer in ll for l in [layer, 0] ]
+        net = nn.Sequential(
+                OrderedDict([
+                    *[(
+                        "layer_%i"%i, (nn.Linear(layer, layers[i+2], bias=True) if layer else nn.Tanh()
+                        )) for i, layer in enumerate(layers[:-3])]
+                    ])
+                )
+#        net = nn.Sequential(*[ nn.Linear(layer, ll[i+1]) for i, layer in enumerate(ll[:-1]) ])
+#        self.actor = lambda : Actor(net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
+        self.factory = NoisyNetFactory(ll, 20, True)
+        self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
     def head(self):
-        return self.actor()
+ #       return self.actor()
         return self.actor(self.factory.head())
 
 import numpy as np

@@ -143,8 +143,8 @@ class Agent:
                         continue
                     loss = self.brain.learn(
                         bd.info[:-1],
-                        bd.sync_delta_a, bd.tau_actor,
-                        bd.sync_delta_c, bd.tau_critic,
+                        0 if bd.counter % bd.sync_delta_a else bd.tau_actor,
+                        0 if bd.counter % bd.sync_delta_c else bd.tau_critic,
                         self.algo[a_i], a_i, bd.mean_only, bd.separate_actors)
                     return loss
             bd.counter = 0
@@ -200,7 +200,7 @@ class Agent:
             n_pushed += 1
 #            print("NEXT", e_i, sum(goods[:, e_i]), len(goods), self.n_approved_simulations)
 
-        print("\n PUSH ", n_pushed, len(full_batch))
+        if len(full_batch) != n_pushed: print("\n PUSH ", n_pushed, len(full_batch))
 
         self.exps.shuffle()
 

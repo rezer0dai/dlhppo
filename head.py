@@ -209,9 +209,10 @@ def install_lowlevel(low_level_task, fm, do_sampling):
                 lr_actor=3e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,
                 sync_delta_a=3, sync_delta_c=2, tau_actor=5e-2, tau_critic=5e-2,
+#                bellman=True, ppo_eps=None, natural=False, mean_only=False, separate_actors=False),
                 bellman=False, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False),
     ]
-    print("\nLOW LEVEL POLICY: \n", [b for b in brain])
+    if do_sampling: print("\nLOW LEVEL POLICY: \n", [b for b in brain])
 
     credit_assign = [ ReacherHRL(her_delay=0,
         cind=0, gae=config.GAE, n_step=config.HRL_LOW_N_STEP, floating_step=config.FLOATING_STEP, 
@@ -301,7 +302,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
                 bellman=False, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False),
     ]
 
-    print("\nHIGH LEVEL: \n", [b for b in brain])
+    if do_sampling: print("\nHIGH LEVEL: \n", [b for b in brain])
 
     credit_assign = [ ReacherCreditAssignment(
         cind=0, gae=config.GAE, n_step=config.HRL_HIGH_N_STEP, floating_step=config.FLOATING_STEP, 

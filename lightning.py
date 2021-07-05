@@ -1,4 +1,3 @@
-import config
 import os, time
 
 import torch 
@@ -73,13 +72,15 @@ from dlppoh import HighLevelCtrlTask
 import numpy as np
 
 class DLPPOHLightning(pl.LightningModule):
-    def __init__(self, model):
+    def __init__(self, model, prefix, n_env):
         super().__init__()
         model.ready()
         self.add_module("model", model)
         self.count = 0
         self.finished = False
         self.ready = False
+        self.n_env = n_env
+        self.prefix = prefix
         
     def delay_load(self, rank):
         if self.ready:
@@ -87,7 +88,7 @@ class DLPPOHLightning(pl.LightningModule):
 
         self.env_start = time.time()
 
-        KEYID = config.PREFIX+"_hl"
+        KEYID = self.prefix+"_hl"
 
         high_level_task = HighLevelCtrlTask("dlppoh_dock_%i"%rank, KEYID, self.model)
 
@@ -95,9 +96,8 @@ class DLPPOHLightning(pl.LightningModule):
 
         self.env, self.task = install_highlevel(high_level_task, KEYID, self.model)
         self.ready = True
-        self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
-        self.env.debug_stats = True
-        self.reward = None
+        self.playground = self.env.step(self.task, self.count * 100 + np.arange(self.n_env), 1)
+        self.env.debug_stats = False#True
         
     def _training_step(self, rank):
         
@@ -105,10 +105,7 @@ class DLPPOHLightning(pl.LightningModule):
 
 #        print("\n ---> ", torch.cat([ep.view(-1) for ep in self.model.enc_parameters()]).sum(), os.getpid())
 
-        reward = None
         while True:
-            if reward is not None:
-                self.reward = reward
             loss = self.task.ENV.ll_env.agent.step(True)
             if loss is not None:
                 return loss
@@ -118,6 +115,7 @@ class DLPPOHLightning(pl.LightningModule):
                 break
             data, acu_reward = next(self.playground, (None, None))
             if data is not None:
+                self.reward = data[6]
                 continue
 
             self.count += 1
@@ -128,8 +126,8 @@ class DLPPOHLightning(pl.LightningModule):
                 self.print(msg)
 
             self.print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
-              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean() if self.reward is not None else None))
-            self.playground = self.env.step(self.task, self.count * 100 + np.arange(config.MIN_N_SIM), 1)
+              "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean()))
+            self.playground = self.env.step(self.task, self.count * 100 + np.arange(self.n_env), 1)
         return loss
         
     def on_train_batch_start(self, _batch, _batch_idx, _dataloader_idx):
@@ -157,12 +155,12 @@ class DLPPOHLightning(pl.LightningModule):
         )
         return dataloader
 
-def get_ready():
+def get_ready(prefix):
     from head import install_highlevel
 
     fm = FullModel()
 
-    KEYID = config.PREFIX+"_hl"
+    KEYID = prefix+"_hl"
     high_level_task = HighLevelCtrlTask("dlppoh_dock", KEYID, fm, do_sampling=True)
 
     env, task = install_highlevel(high_level_task, KEYID, fm, do_sampling=True)

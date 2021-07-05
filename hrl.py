@@ -133,6 +133,7 @@ class ReacherHRL(HER):
 
 
 
+#            out = """
 
             dist, _, _ = config.AGENT[0].exploit(
                     her_hers,
@@ -142,6 +143,7 @@ class ReacherHRL(HER):
             hi = torch.tensor(her_goals)[bool_inds][::2]
             if len(hi) * 3 >= len(idxs) * 2: print("DISBANDED {} vs {}".format(len(hi), len(idxs)))
             allowed_mask[hi] = False
+#            """
 
 
 

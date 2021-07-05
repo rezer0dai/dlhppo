@@ -44,6 +44,24 @@ class PPOHead(nn.Module):
         dist = NormalWithAction(mu, sigma)
         return PGDist(dist) # retain gradients in mu and sigma
 
+class DDPGHead(nn.Module):
+    def __init__(self):
+        super().__init__()
+        assert False
+        assert config.DDPG
+        self.action = None
+        self.loc = None
+        self.scale = None
+    def forward(self, action):
+        self.action = action
+        self.loc = torch.ones_like(action)
+        self.scale = torch.ones_like(action)
+        return PGDist(self)
+    def sample(self):
+        return self.action
+    def log_prob(self, actions):
+        return torch.ones_like(actions)
+
 class RLLoss:
     def __init__(self, advantages=True, boost=False):
         self.advantages_enabled = advantages

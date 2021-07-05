@@ -76,12 +76,10 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if global_id else "lowpi")
 
     def critic(self, i):
-        with torch.no_grad(): 
-            return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.global_id else not self.target)]
+        return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.global_id else not self.target)]
 
     def actor(self, i):
-        with torch.no_grad(): 
-            return self.full_model[self.decorate("actor_%i"%i)]
+        return self.full_model[self.decorate("actor_%i"%i)]
 
     def encoder(self, x, m):
         with torch.no_grad(): 
@@ -159,7 +157,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
                 d, _ = config.AGENT[0].brain.ac_target.act(ll_goals, states, memory, -1)
 
 #TODO PROPER TEST
-            if config.DOUBLE_LEARNING:
+            if config.DOUBLE_LEARNING and not config.DDPG:
                 if probs is not None:
                     old_prob = pi[:, config.HRL_ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE].mean(1)
                     actionsZ = pi[:, config.HRL_ACTION_SIZE+config.ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE*2]
@@ -177,22 +175,19 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
     def forward(self, goals, states, memory, ind, a_i, mean_only, probs = None):# = 0):
         dist, probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, a_i, mean_only, probs)
-        q = self._value(ll_goals, states, memory, 
-#                torch.cat([actions, ll_goals, ], 1), 
-                actions,# if not config.NO_GOAL else torch.cat([actions, ll_goals, ], 1), 
-
-#TODO oldsxuul
-#                ll_goals if self.global_id else torch.cat([actions, ll_goals, ], 1),
-
-                ind)#, forward)
+        if probs is not None:
+            q = self._value(ll_goals, states, memory, actions, ind)
+        else:
+            with torch.no_grad():
+                q = self._value(ll_goals, states, memory, actions, ind)
         return q, dist, probs
 
+# torch no grad should be whole function!!
     def qa_stable(self, goals, states, memory, actions, ind):
         if goals.shape[-1] == 3:
             forward = False
             ll_goals = actions[:, :actions.shape[-1]//3]
-            with torch.no_grad():
-                _, d, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
+            _, d, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
             actions = d.params(False)
         else:
             forward = True
@@ -250,9 +245,9 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 #        return q.min(dim=1, keepdim=True)[0]
         return q.mean(dim=1, keepdim=True)
 
+#also torch no grad whole function should be!!
     def suboptimal_qa(self, goals, states, memory):
-        with torch.no_grad():
-            dist, _probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, 0, False)
+        dist, _probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, 0, False)
         q = self._value(ll_goals, states, memory, 
                 actions,# if not config.NO_GOAL else torch.cat([actions, ll_goals, ], 1), 
                 -1)
@@ -274,6 +269,9 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
                     )[0] for i in range(self.n_actors) ], 1
                 ).mean(0, keepdim=True)
             ind = q.max(-1, keepdim=True)[1]
+        else:
+            assert ind < self.n_actors
+            ind = 0 if -1 == ind else ind
 
         if config.LLACTOR_UNOMRED and 3 != goals.shape[-1]:
             return self.actor(ind)(goals, states), memory
@@ -281,7 +279,6 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         states_, _ = self.encoder(states, memory)
         if self.goal_encoder is not None:
             goals_ = self.goal_encoder(goals)
-        ind = ind % self.n_actors
         pi = self.actor(ind)(goals_, states_)
         return pi, memory
 

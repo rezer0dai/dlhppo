@@ -6,7 +6,7 @@ import torch
 try:
     from utils.rbf import *
 except:
-    print("RBF sampler will not work, probably due missing sklearn package")
+    pass#print("RBF sampler will not work, probably due missing sklearn package")
 
 from utils.normalizer import *
 
