@@ -168,7 +168,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         else:
             forward = True
             ll_goals = goals.clone()
-            goals = states[:, -config.CORE_ORIGINAL_GOAL_SIZE:]
+            limit = goals.shape[-1] if not config.TIMEFEAT else -1
+            goals = states[:, :limit][:, -config.CORE_ORIGINAL_GOAL_SIZE:]
 
         actions = pi[:, :pi.shape[-1]//3]
         return dist, probs, actions, goals, ll_goals
@@ -192,7 +193,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         else:
             forward = True
             ll_goals = goals.clone()
-            goals = states[:, -config.CORE_ORIGINAL_GOAL_SIZE:]
+            limit = goals.shape[-1] if not config.TIMEFEAT else -1
+            goals = states[:, :limit][:, -config.CORE_ORIGINAL_GOAL_SIZE:]
 
         actions = actions[:, :actions.shape[-1]//3]
         return self._value(ll_goals, states, memory, 

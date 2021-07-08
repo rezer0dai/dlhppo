@@ -38,7 +38,7 @@ class Actor(nn.Module): # decorator
         state = states[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT] # SKIP timefeature, duplicates achieved goal + goal
         if config.BLIND:
             if config.HRL_GOAL_SIZE == goal.shape[-1]:
-                state = state[:, :config.LL_STATE_SIZE] # only arm + gripper
+                state = state[:, :config.LL_STATE_SIZE-config.TIMEFEAT] # only arm + gripper
 #                if not config.ERGOJR:
 #                    state = state[:, :10] # only arm + gripper
 #                else:
@@ -63,7 +63,7 @@ class ActorFactory: # proxy
 
         if config.BLIND:
             if config.ACTION_SIZE == action_size:
-                ll[0] = config.LL_STATE_SIZE + config.HRL_GOAL_SIZE
+                ll[0] = config.LL_STATE_SIZE + config.HRL_GOAL_SIZE - config.TIMEFEAT
 #                if not config.ERGOJR:
 #                    ll[0] = 10+config.HRL_GOAL_SIZE
 #                else:
@@ -138,10 +138,12 @@ class Critic(nn.Module):
     def device(self):
         return self.dummy_param.device
 
-    def forward(self, goals, states, actions):
+    def forward(self, goals, state, actions):
         #assert torch.float32 == goals.dtype
         goals = self.ibottleneck(goals.to(self.device()))
-        states = states[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE]#config.TIMEFEAT] # SKIP GOAL and timefeature from value, leaving timefeature only for LL Actor
+        states = state[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT]#config.TIMEFEAT] # SKIP GOAL and timefeature from value, leaving timefeature only for LL Actor
+        if config.TIMEFEAT:
+            states = torch.cat([states, state[:, -1].view(-1, 1)], 1)
 
         if not config.NO_GOAL:
             states = torch.cat([goals, states], 1)

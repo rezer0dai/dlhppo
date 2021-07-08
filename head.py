@@ -67,7 +67,7 @@ class GlobalNormalizerWithTimeEx(IEncoder):
 
         self.lowlevel = lowlevel
         
-        enc = GlobalNormalizer(size_in if config.LEAK2LL or not lowlevel else config.LL_STATE_SIZE, 1)
+        enc = GlobalNormalizer((size_in if config.LEAK2LL or not lowlevel else config.LL_STATE_SIZE) - config.TIMEFEAT, 1)
         
         self.add_module("enc", enc)
         self.add_module("goal_encoder", goal_encoder_ex)
@@ -80,6 +80,11 @@ class GlobalNormalizerWithTimeEx(IEncoder):
     def forward(self, states, memory):
         states = states.to(self.device())
         memory = memory.to(self.device())
+
+        if config.TIMEFEAT:
+            tf = states[:, -config.TIMEFEAT:].view(-1, 1)
+            states = states[:, :-config.TIMEFEAT]
+
         #print("\n my device", self.device(), self.goal_encoder.device(), goal_encoder_ex.device())
         enc = lambda data: self.goal_encoder(data).view(len(data), -1)
         pos = lambda buf, b, e: buf[:, b*config.CORE_ORIGINAL_GOAL_SIZE:e*config.CORE_ORIGINAL_GOAL_SIZE]
@@ -101,12 +106,12 @@ class GlobalNormalizerWithTimeEx(IEncoder):
 
         state = states
         if self.lowlevel and not config.LEAK2LL:
-            state = states[:, config.CORE_ORIGINAL_GOAL_SIZE:][:, :config.LL_STATE_SIZE]
+            state = states[:, config.CORE_ORIGINAL_GOAL_SIZE:][:, :config.LL_STATE_SIZE-config.TIMEFEAT]
 
         encoded, memory = self.enc(state, memory)
 
         if self.lowlevel and not config.LEAK2LL:
-            encoded = torch.cat([states[:, :config.CORE_ORIGINAL_GOAL_SIZE], encoded, states[:, config.CORE_ORIGINAL_GOAL_SIZE+config.LL_STATE_SIZE:]], 1)
+            encoded = torch.cat([states[:, :config.CORE_ORIGINAL_GOAL_SIZE], encoded, states[:, config.CORE_ORIGINAL_GOAL_SIZE+config.LL_STATE_SIZE-config.TIMEFEAT:]], 1)
 
         encoded = pos(encoded, 3, -(2*config.PUSHER+1)) # skip object + goal positions, those will be added by goal_encoder
 
@@ -117,6 +122,8 @@ class GlobalNormalizerWithTimeEx(IEncoder):
         if states.shape[-1] != encoded.shape[-1]:
             print("\nshappezzz:", states.shape[-1], encoded.shape[-1], self.lowlevel, obj_pos_w_goal.shape)
         assert states.shape[-1] == encoded.shape[-1]
+        if config.TIMEFEAT:
+            encoded = torch.cat([encoded, tf], 1)
         return encoded, memory
             
 from utils.memory import Memory
@@ -272,7 +279,8 @@ def do_sample(env, seed, goal_encoder, encoder):
                 ]
 
         state = np.concatenate([positions[random.randint(0, 1)], obs['observation'], positions[random.randint(0, 1)]])
-#        encoder(torch.from_numpy(state).view(1, -1).float().to(config.DEVICE), torch.zeros(1).to(config.DEVICE))
+        if config.TIMEFEAT:#append dummy ttime feat
+            state = np.concatenate([state, np.zeros(1)])
         encoder(torch.from_numpy(state).view(1, -1).float(), torch.zeros(1))
     
 def install_highlevel(high_level_task, keyid, fm, do_sampling=False):

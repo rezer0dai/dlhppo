@@ -57,7 +57,8 @@ class LowLevelCtrlTask:
         return self.goals
 
     def optimal_goals(self, base_states, end_states):
-        base_states[:, -config.CORE_ORIGINAL_GOAL_SIZE:] = achieved_goals(self.info.states)
+        limit = base_states.shape[-1] if not config.TIMEFEAT else -1
+        base_states[:, :limit][:, -config.CORE_ORIGINAL_GOAL_SIZE:] = achieved_goals(self.info.states)
         dist, _, _ = self.hl_agent.exploit(
             end_states[:, :config.CORE_GOAL_SIZE],
             base_states,
@@ -69,8 +70,8 @@ class LowLevelCtrlTask:
         self.n_steps += 1
         if not config.TIMEFEAT:
             return states
-        assert self.n_steps <  (1. + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT)
-        tf = ones(states.shape[0], 1) - (self.n_steps /  (1. + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT))
+        assert self.n_steps <= (2. + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT)
+        tf = ones(states.shape[0], 1) - (self.n_steps /  (3. + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT))
         return torch.cat([states, tf], 1)
 
     def _state(self,
@@ -79,11 +80,11 @@ class LowLevelCtrlTask:
 
         states, goals, rewards, dones = einfo
 
-        states = self.append_time_feat(states)
-
         states = torch.cat([states, goals], 1)
         if config.CORE_GOAL_SIZE != config.CORE_ORIGINAL_GOAL_SIZE:
             goals = np.concatenate([goals, self.orig_pos], 1)
+
+        states = self.append_time_feat(states)
 
         goods = self.goods if self.goods is not None else [False for _ in range(len(states))]
         rewards = tensor(rewards, [-1, 1])

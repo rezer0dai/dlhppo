@@ -109,12 +109,13 @@ class ReacherHRL(HER):
 
         if len(hers):
 
-            h_states[idxs, -config.CORE_ORIGINAL_GOAL_SIZE:] = states[her_goals[0::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
-            h_n_states[idxs, -config.CORE_ORIGINAL_GOAL_SIZE:] = states[her_goals[1::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
+            limit = h_states.shape[-1] if not config.TIMEFEAT else -1
+            h_states[idxs, -config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT:limit] = states[her_goals[0::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
+            h_n_states[idxs, -config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT:limit] = states[her_goals[1::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
 
             her_states_t = h_states[her_states].view(len(her_states), -1).clone()
 #            assert her_states_t[1::2, -config.CORE_ORIGINAL_GOAL_SIZE:].shape == states[her_goals[1::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone().shape
-            her_states_t[1::2, -config.CORE_ORIGINAL_GOAL_SIZE:] = states[her_goals[1::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
+            her_states_t[1::2, -config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT:limit] = states[her_goals[1::2], :config.CORE_ORIGINAL_GOAL_SIZE].clone()
 
             if config.TIMEFEAT:
                 if config.TF_LOW:
