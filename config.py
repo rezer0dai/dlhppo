@@ -3,7 +3,7 @@ COLAB = True#False#
 LOAD = False#True#
 SAVE = False#True
 
-DDPG = False
+DDPG = True#False#
 
 DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
@@ -14,13 +14,13 @@ TIMEFEAT = True#False#
 TF_LOW = True#None#
 BLIND = True#False#
 NO_GOAL = False#True#
-GAMMA = .85
+GAMMA = .95
 SELECT_EXP = False#True#
 LEAK2LL = False#True#
 
 MUJOCO = False#True#
-PANDA = False#True#
-ERGOJR = True#False#
+PANDA = True#False#
+ERGOJR = False#True#
 
 assert MUJOCO + PANDA + ERGOJR == 1
 
@@ -43,8 +43,8 @@ FLOATING_STEP = True
 
 CORE_GOAL_SIZE = CORE_ORIGINAL_GOAL_SIZE
 
-HRL_HIGH_STEP = 10#40#25#
-HRL_STEP_COUNT = 10#1#2#
+HRL_HIGH_STEP = 40#10#25#
+HRL_STEP_COUNT = 1#10#2#
 HRL_ACTION_SIZE = 64#16#
 INFO_BOTTLENECK_SIZE = 16#4#
 HRL_GOAL_SIZE = 10#8#16#
@@ -57,7 +57,7 @@ HRL_HIGH_N_STEP = 3*HRL_HIGH_STEP//2#40#20#HRL_HIGH_STEP // 10 * 8
 HRL_ACTION_TEST_RATIO = None#.15#1.#
 HRL_HINDSIGHTACTION_HORIZON = HRL_HIGH_STEP * 10#40#100#
 
-MIN_N_SIM = 40#100#
+MIN_N_SIM = 100#40#
 TOTAL_ENV = MIN_N_SIM#(1 + PUSHER)*MIN_N_SIM
 DEVICE = "cpu"
 
