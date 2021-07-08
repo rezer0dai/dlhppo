@@ -5,7 +5,7 @@ SAVE = False#True
 
 DDPG = False
 
-DOUBLE_LEARNING = False#True# ##### False in second DoubleL because EXPLORER only will be used!!!
+DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
@@ -14,13 +14,13 @@ TIMEFEAT = False#True#
 TF_LOW = True#None#
 BLIND = True#False#
 NO_GOAL = False#True#
-GAMMA = .9#95
+GAMMA = .85
 SELECT_EXP = False#True#
-LEAK2LL = True#False#
+LEAK2LL = False#True#
 
-MUJOCO = True#False#
+MUJOCO = False#True#
 PANDA = False#True#
-ERGOJR = False#True#
+ERGOJR = True#False#
 
 assert MUJOCO + PANDA + ERGOJR == 1
 
@@ -29,7 +29,7 @@ CORE_ORIGINAL_GOAL_SIZE = 3
 PUSHER = False#True#
 
 if ERGOJR: # no gripper, velo per joint ( #of joints == action_size )
-    ACTION_SIZE = 4 - PUSHER
+    ACTION_SIZE = 3 + (not PUSHER) * 3
     LL_STATE_SIZE = CORE_ORIGINAL_GOAL_SIZE * 2 + ACTION_SIZE * 2
     CORE_STATE_SIZE = CORE_ORIGINAL_GOAL_SIZE + LL_STATE_SIZE + 3*CORE_ORIGINAL_GOAL_SIZE*PUSHER + TIMEFEAT# + CORE_ORIGINAL_GOAL_SIZE 
 else: # arm pos, arm prev pos, arm velo, gripper pos + velo + velp
@@ -52,12 +52,12 @@ HRL_GOAL_SIZE = 10#8#16#
 HER_RATIO = .6#.5#.4#
 
 HRL_LOW_N_STEP = 2#int(HRL_HIGH_STEP * HRL_STEP_COUNT * (1.-HER_RATIO) / 4)
-HRL_HIGH_N_STEP = HRL_HIGH_STEP#40#20#HRL_HIGH_STEP // 10 * 8
+HRL_HIGH_N_STEP = 3*HRL_HIGH_STEP//2#40#20#HRL_HIGH_STEP // 10 * 8
 
 HRL_ACTION_TEST_RATIO = None#.15#1.#
 HRL_HINDSIGHTACTION_HORIZON = HRL_HIGH_STEP * 10#40#100#
 
-MIN_N_SIM = 20#40#
+MIN_N_SIM = 100#40#
 TOTAL_ENV = MIN_N_SIM#(1 + PUSHER)*MIN_N_SIM
 DEVICE = "cpu"
 
@@ -88,3 +88,4 @@ N_HL_ACTORS = 1
 N_LL_ACTORS = 1
 
 AGENT = []
+

@@ -17,11 +17,13 @@ if '__main__' == __name__:
 
     trainer = pl.Trainer(
         gpus=0,
-        distributed_backend="ddp_cpu" if 40 // config.MIN_N_SIM > 1 else "dp",
-        num_processes=40 // config.MIN_N_SIM,
+        distributed_backend="ddp_cpu" if config.MIN_N_SIM // 40 > 1 else "dp",
+        num_processes=config.MIN_N_SIM // 40,
         max_epochs = 1000 * 100,
     )
 
     trainer.fit(algo)
+
+    trainer.save_checkpoint(config.ENV_NAME+".ckt")
 
     print("we are done here maybe")

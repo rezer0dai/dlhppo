@@ -92,7 +92,7 @@ class CreditAssignment:# temporary resampling=False, if proved good then no defa
         if self.floating_step:
             return random.randint(1, n_limit)
         if n_limit < self.n_step:
-            return 0
+            return self.gae * n_limit
         return self.n_step
 
     def _random_n_step(self, length, _indices, _recalc):

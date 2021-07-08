@@ -14,7 +14,7 @@ class Env:
             fast_fail=True, do_not_eval_exploit=False
             ):
 
-        assert n_step <= send_delta, "for GAE, but we apply it in general, we need to send at least n_step samples ( adjust send_delta accordingly! )"
+#        assert n_step <= send_delta, "for GAE, but we apply it in general, we need to send at least n_step samples ( adjust send_delta accordingly! )"
 
         self.fast_fail = fast_fail
         self.do_not_eval_exploit = do_not_eval_exploit
