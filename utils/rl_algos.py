@@ -31,9 +31,11 @@ class BrainOptimizer:
         self.steps = 0
 
         self.clip = desc.ppo_eps is not None
-        if not self.clip:
+        if self.bellman:
+            print("DDPG", desc.batch_size)
             self.loss = policy.DDPGLoss(advantages=True, boost=False)
         else:
+            print("PPO", desc.batch_size)
             self.loss = policy.PPOLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
     def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph):
@@ -43,12 +45,13 @@ class BrainOptimizer:
 #            self.lr.step()
         self.steps += 1
 
-        if not self.clip:#vanilla ddpg
-#            if 0 == random.randint(0, 50): print("VANILA DDPG")
-            pi_loss = self.loss(qa, td_targets, None, None)
-        elif self.bellman:#DDPG with clip
-            pi_loss = self.loss(td_targets, qa,
-                dist.log_prob(actions).mean(1).detach(), probs)
+#        if not self.clip:#vanilla ddpg
+##            if 0 == random.randint(0, 50): print("VANILA DDPG")
+#            pi_loss = self.loss(qa, td_targets, None, None)
+        if self.bellman:#DDPG with clip
+            pi_loss = self.loss(td_targets, qa)
+#            pi_loss = self.loss(qa, td_targets)
+            
         else:#PPO
 #            if 0 == random.randint(0, 50): print("PPO")
             pi_loss = self.loss(qa.detach(), td_targets.detach(),

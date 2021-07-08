@@ -134,17 +134,16 @@ class ReacherHRL(HER):
 
 
 
-#            out = """
 
-            dist, _, _ = config.AGENT[0].exploit(
-                    her_hers,
-                    her_states_t,
-                    torch.zeros(len(her_goals), 1), 0)
-            bool_inds = (dist.log_prob(actions[her_states]).mean(1) < -1.)
-            hi = torch.tensor(her_goals)[bool_inds][::2]
-            if len(hi) * 3 >= len(idxs) * 2: print("DISBANDED {} vs {}".format(len(hi), len(idxs)))
-            allowed_mask[hi] = False
-#            """
+            if not config.DDPG:
+                dist, _, _ = config.AGENT[0].exploit(
+                        her_hers,
+                        her_states_t,
+                        torch.zeros(len(her_goals), 1), 0)
+                bool_inds = (dist.log_prob(actions[her_states]).mean(1) < -1.)
+                hi = torch.tensor(her_goals)[bool_inds][::2]
+                if len(hi) * 3 >= len(idxs) * 2: print("DISBANDED {} vs {}".format(len(hi), len(idxs)))
+                allowed_mask[hi] = False
 
 
 

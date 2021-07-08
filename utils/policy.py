@@ -47,7 +47,6 @@ class PPOHead(nn.Module):
 class DDPGHead(nn.Module):
     def __init__(self):
         super().__init__()
-        assert False
         assert config.DDPG
         self.action = None
         self.loc = None
@@ -145,7 +144,7 @@ class DDPGLoss(RLLoss):
         # w.r.t. self-played action
         return -loss
 
-    def __call__(self, qa, td_targets, _old_probs, _new_probs):
+    def __call__(self, qa, td_targets):
         loss = self.pi_error(qa, td_targets)
         loss = loss.view(len(loss), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
         return self.ddpg(loss)
