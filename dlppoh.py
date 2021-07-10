@@ -255,9 +255,14 @@ class HighLevelCtrlTask:
         pi = Normal(actions[:, a.shape[1]: a.shape[1]*2], actions[:, a.shape[1]*2:])
         og = self.ll_ctrl.optimal_goals(base_states, next_states)
 
-        baseline = pi.log_prob(a).mean(1) * (1. + 1. - self.ls.get_ls())
-
-        idx = pi.log_prob(og).mean(1) > baseline
+        mean_a = pi.log_prob(a).mean(1) 
+        baseline_up = mean_a * (1. + 1. - self.ls.get_ls())
+        baseline_down = mean_a * (1. - (1. - self.ls.get_ls()))
+        
+        mean_og = pi.log_prob(og).mean(1) 
+        idx_up = mean_og < baseline_up 
+        idx_down = mean_og > baseline_down
+        idx = idx_up == idx_down
         if not sum(idx):
             return a
         

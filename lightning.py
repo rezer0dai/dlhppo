@@ -155,14 +155,14 @@ class DLPPOHLightning(pl.LightningModule):
         )
         return dataloader
 
-def get_ready(prefix):
+def get_ready(prefix, do_sampling=True):
     from head import install_highlevel
 
     fm = FullModel()
 
     KEYID = prefix+"_hl"
-    high_level_task = HighLevelCtrlTask("dlppoh_dock", KEYID, fm, do_sampling=True)
+    high_level_task = HighLevelCtrlTask("dlppoh_dock", KEYID, fm, do_sampling=do_sampling)
 
-    env, task = install_highlevel(high_level_task, KEYID, fm, do_sampling=True)
+    env, task = install_highlevel(high_level_task, KEYID, fm, do_sampling=do_sampling)
     fm.ready()
     return fm
