@@ -189,7 +189,7 @@ from hrl import ReacherHRL
 
 def install_lowlevel(low_level_task, fm, do_sampling):
     KEYID = config.PREFIX+"_ll"
-    RECALC_PER_PUSH = 3
+    RECALC_PER_PUSH = 40
     LL_GOAL_SIZE = config.HRL_ACTION_SIZE
     LL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     LL_MAX_STEPS = 1 + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT
