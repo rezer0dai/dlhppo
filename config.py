@@ -59,7 +59,7 @@ HRL_HIGH_N_STEP = 3*HRL_HIGH_STEP//2#40#20#HRL_HIGH_STEP // 10 * 8
 HRL_ACTION_TEST_RATIO = None#.15#1.#
 HRL_HINDSIGHTACTION_HORIZON = HRL_HIGH_STEP * 10#40#100#
 
-MIN_N_SIM = 40#100#
+MIN_N_SIM = 100#40#
 TOTAL_ENV = MIN_N_SIM#(1 + PUSHER)*MIN_N_SIM
 DEVICE = "cpu"
 
@@ -74,7 +74,7 @@ PREFIX="multiprocess_220_"+ENV_NAME
 
 GAE = True
 HL_BATCH_SIZE = 4096#2048#
-LL_BATCH_SIZE = 4096*1#1024#4096
+LL_BATCH_SIZE = 4096*(1 + MIN_N_SIM // 100)#1024#4096
 SIGMOID = False#True#
 BPO = False
 TEST_ENVS = [ENV_NAME]#, ENV_NAME, "FetchReach-v1"]#"FetchPush-v1","FetchPush-v1"]#"FetchReach-v1"]#"FetchPush-v1"]#, "FetchPush-v1", "FetchReach-v1", "FetchPush-v1"]#
