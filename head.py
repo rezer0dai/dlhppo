@@ -216,8 +216,7 @@ def install_lowlevel(low_level_task, fm, do_sampling):
                 lr_actor=3e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,
                 sync_delta_a=3, sync_delta_c=2, tau_actor=5e-2, tau_critic=5e-2,
-#                bellman=True, ppo_eps=None, natural=False, mean_only=False, separate_actors=False),
-                bellman=False, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False),
+                bellman=config.DDPG, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False),
     ]
     if do_sampling: print("\nLOW LEVEL POLICY: \n", [b for b in brain])
 
