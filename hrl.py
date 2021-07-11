@@ -47,7 +47,6 @@ class ReacherHRL(HER):
         hers = []
         others = []
 
-        COUNTER[sum(her_step_inds) > 0] += 1
         for i in range(HRL_STEP_COUNT, len(goals)-1, HRL_STEP_COUNT):
             if her_step_inds[i-1]:
                 her_step_inds[i] = 0
@@ -142,10 +141,10 @@ class ReacherHRL(HER):
                         torch.zeros(len(her_goals), 1), 0)
                 bool_inds = (dist.log_prob(actions[her_states]).mean(1) < -1.)
                 hi = torch.tensor(her_goals)[bool_inds][::2]
-                if len(hi) * 3 >= len(idxs) * 2: print("DISBANDED {} vs {}".format(len(hi), len(idxs)))
                 allowed_mask[hi] = False
 
-
+                COUNTER[len(hi) * 3 >= len(idxs) * 2] += 1
+                if random.random() < .001: print("\n\n----> DISBANDED stats {} vs {}\n".format(*COUNTER))
 
 
             h_goals[idxs] = her_hers[0::2].float()

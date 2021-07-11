@@ -145,9 +145,11 @@ class Brain(META):
             # TD(0) with k-step estimators
             td_targets = n_rewards + n_discounts * n_qa
 
+        sync_delta = 3
+        loss = 0.
         if True:#with timebudget("_learn_backprop"):
     #        if "lowlevel" in self.mp and random.random() < .1:
-            if True:#for s in range(sync_delta_a):
+            for s in range(sync_delta):
 
     # activate gradients ~ SELF-play
                 pi_loss = []
@@ -159,7 +161,7 @@ class Brain(META):
 #                        qa_stable, td_targets, w_is,
                         q_replay, td_targets, w_is,
                         probs_, actions, dists,
-                        None, retain_graph=False)#(sync_delta_a-1 != s))#surrogate_loss)
+                        None, retain_graph=False)#(sync_delta-1 != s))#surrogate_loss)
 
                 cl_clip = qa_stable + torch.clamp(q_replay - qa_stable, -clip, clip)
                 cl_clip = (cl_clip - td_targets).pow(2).mean(1)
@@ -168,6 +170,9 @@ class Brain(META):
                 critic_loss = (torch.max(cl_raw, cl_clip) * (w_is if w_is is not None else 1.)).mean()
 
                 pi_loss, critic_loss = self.loss_callback(pi_loss, critic_loss, self, actions, goals, states, memory, qa_stable, n_dist)
+                loss += (pi_loss + critic_loss) * .5
+
+        loss = loss / sync_delta
 
         target = self.tcp(self.global_id * config.DETACH_CRITICS)
         explorer = self.ecp(random.randint(0, self.ac_explorer.n_critics-1))
@@ -190,7 +195,7 @@ class Brain(META):
                     target,
                     tau_actor)
 
-        return (pi_loss + critic_loss) * .5
+        return loss
 
         self.save_models(0, "eac")
 

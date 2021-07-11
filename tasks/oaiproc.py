@@ -19,11 +19,11 @@ def ergojr_make(render):
     else:
         from ergo_reacher_env import ErgoReacherEnv
         if 3 == config.ACTION_SIZE:
-            return ErgoReacherEnv(not render, goals=3, multi_goal=True, terminates=False, simple=False, gripper=True, backlash=False)
+            return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=False, gripper=True, backlash=config.BACKLASH)
         if 4 == config.ACTION_SIZE:
-            return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=True, gripper=False, backlash=False)
+            return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=True, gripper=False, backlash=config.BACKLASH)
         if 6 == config.ACTION_SIZE:
-            return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=False, gripper=False, backlash=False)
+            return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=False, gripper=False, backlash=config.BACKLASH)
         assert False
 
 def panda_make(render):
