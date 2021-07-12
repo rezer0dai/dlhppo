@@ -257,7 +257,7 @@ class HighLevelCtrlTask:
         pi = Normal(actions[:, a.shape[1]: a.shape[1]*2], actions[:, a.shape[1]*2:])
         og = self.ll_ctrl.optimal_goals(base_states, next_states)
 
-        return a, og
+#        return a, og
 
         mean_a = pi.log_prob(a).mean(1) 
         baseline_up = mean_a * (1. + 1. - self.ls.get_ls())
@@ -268,15 +268,15 @@ class HighLevelCtrlTask:
         idx_down = mean_og > baseline_down
         idx = idx_up == idx_down
         if not sum(idx):
-            return a
+            return a, og
         
         a[idx > 0] = og[idx > 0]
         self.probed += sum(idx)
 
         if sum(idx) * 2 > len(og) and sum(goods):
-            return a
+            return a, og.clone()
         
         self.ls()    
-        return a
+        return a, og.clone()
 
 
