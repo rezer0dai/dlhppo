@@ -3,18 +3,18 @@ COLAB = True#False#
 LOAD = False#True#
 SAVE = False#True
 
-DDPG = False#True#
+DDPG = True#False#
 
 DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
 CRITIC_UNORMED = False#True#
-TIMEFEAT = False#True#
+TIMEFEAT = True#False#
 TF_LOW = True#None#
 BLIND = True#False#
 NO_GOAL = False#True#
-GAMMA = .85
+GAMMA = .95
 SELECT_EXP = False#True#
 LEAK2LL = True#False#
 

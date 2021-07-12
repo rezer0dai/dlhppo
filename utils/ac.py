@@ -181,14 +181,14 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         else:
             with torch.no_grad():
                 q = self._value(ll_goals, states, memory, actions, ind)
-        return q, dist, probs
+        return q, dist, probs, actions
 
 # torch no grad should be whole function!!
     def qa_stable(self, goals, states, memory, actions, ind):
         if goals.shape[-1] == 3:
             forward = False
             ll_goals = actions[:, :actions.shape[-1]//3]
-            _, d, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
+            _, d, _, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
             actions = d.params(False)
         else:
             forward = True

@@ -22,8 +22,7 @@ class BrainOptimizer:
 #            self.actor_optimizer = optim.AdamW(
 ##            self.actor_optimizer = optim.SGD(#
 ##            self.actor_optimizer = optim.RMSprop(
-#                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, weight_decay=config.WD, eps=1e-5)
-#
+#                brain.ac_explorer.actor_parameters(), lr=desc.lr_actor, weight_decay=config.WD, eps=1e-5) #
 #        limit = config.HRL_HIGH_STEP * desc.sync_delta_a * config.TOTAL_ROUNDS // (desc.learning_delay // config.HRL_HIGH_STEP)
 #        frac = lambda epoch: (1. - (epoch - 1.) / limit) if epoch < limit else 1e-2
 #        self.lr = optim.lr_scheduler.LambdaLR(self.actor_optimizer, frac)
@@ -33,12 +32,13 @@ class BrainOptimizer:
         self.clip = desc.ppo_eps is not None
         if self.bellman:
             print("DDPG", desc.batch_size)
-            self.loss = policy.DDPGLoss(advantages=True, boost=False)
+#            self.loss = policy.DDPGLoss(advantages=True, boost=False)
+            self.loss = policy.TD3BCLoss()
         else:
             print("PPO", desc.batch_size)
             self.loss = policy.PPOLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
-    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph):
+    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions):
         assert self.bellman or self.clip, "ppo can be only active when clipped ( in our implementation )!"
 
 #        if self.steps > 1:
@@ -49,7 +49,10 @@ class BrainOptimizer:
 ##            if 0 == random.randint(0, 50): print("VANILA DDPG")
 #            pi_loss = self.loss(qa, td_targets, None, None)
         if self.bellman:#DDPG with clip
-            pi_loss = self.loss(td_targets, qa)
+            assert actions.shape[-1] == offline_actions.shape[-1] * 3
+            
+            pi_loss = self.loss(actions[:, :offline_actions.shape[-1]], offline_actions, qa)
+#            pi_loss = self.loss(td_targets, qa)
 #            pi_loss = self.loss(qa, td_targets)
             
         else:#PPO

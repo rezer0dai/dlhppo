@@ -2,6 +2,7 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import Normal
 
 #from timebudget import timebudget
@@ -134,6 +135,21 @@ class PPOLoss(RLLoss):
         loss = self.pi_error(qa, td_targets)
         loss = loss.view(len(loss), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
         return self.ppo_loss(old_probs, new_probs, loss)
+
+class TD3BCLoss:
+    def td3bc(self, qa):
+        """ paper : 
+            + offline learning
+            - online learning
+        """
+        lmbda = 2.5 / qa.abs().mean().detach()
+        return -lmbda * qa.mean()
+
+    def __call__(self, online_actions, offline_actions, qa):
+        qa = qa.view(len(qa), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
+
+        bc_loss = F.mse_loss(online_actions, offline_actions)
+        return self.td3bc(qa) + bc_loss
 
 class DDPGLoss(RLLoss):
     def ddpg(self, loss):
