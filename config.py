@@ -73,7 +73,7 @@ PREFIX="multiprocess_220_"+ENV_NAME
 # CHANGES : policy.py diff * .5, ac.py probs + (old - new) -> w/o discount, HRL_HIROZON * 50 -> now w/o 50
 
 GAE = True
-HL_BATCH_SIZE = 4096#2048#
+HL_BATCH_SIZE = 2048*(1 + MIN_N_SIM // 100)#4096#2048#
 LL_BATCH_SIZE = 4096*(1 + MIN_N_SIM // 100)#1024#4096
 SIGMOID = False#True#
 BPO = False
