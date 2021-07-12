@@ -92,14 +92,14 @@ class ActorFactory: # proxy
 
 import numpy as np
 
-def rl_ibounds(layer):
-    b = 1. / np.sqrt(layer.weight.data.size(0))
-    return (-b, +b)
+#def rl_ibounds(layer):
+#    b = 1. / np.sqrt(layer.weight.data.size(0))
+#    return (-b, +b)
 
-def initialize_weights(layer):
-    if type(layer) not in [nn.Linear, ]:
-        return
-    nn.init.uniform_(layer.weight.data, *rl_ibounds(layer))
+#def initialize_weights(layer):
+#    if type(layer) not in [nn.Linear, ]:
+#        return
+#    nn.init.uniform_(layer.weight.data, *rl_ibounds(layer))
 
 class Mish(nn.Module):
     def __init__(self):
@@ -132,7 +132,8 @@ class Critic(nn.Module):
                     ])
                 )
         self.apply(initialize_weights)
-        self.net[-1].weight.data.uniform_(-3e-3, 3e-3) # seems this works better ? TODO : proper tests!!
+        #self.net[-1].weight.data.uniform_(-3e-3, 3e-3) # seems this works better ? TODO : proper tests!!
+        orthogonal_init(self.net[-1]..data, 1.)
 
         self.register_parameter("dummy_param", nn.Parameter(torch.empty(0)))
     def device(self):
