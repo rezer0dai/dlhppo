@@ -231,7 +231,8 @@ class HighLevelCtrlTask:
         next_states = self.ll_ctrl.get_info().states.clone()
         
         goods = select_exp(base_states, next_states)
-        actions = self.proximaly_close_actions(a, pi, base_states, next_states, goods)
+        actions, reactions = self.proximaly_close_actions(a, pi, base_states, next_states, goods)
+#        actions = self.proximaly_close_actions(a, pi, base_states, next_states, goods)
 
         self.einfo = self._state(
             self.ll_ctrl.get_info(), 
@@ -240,20 +241,23 @@ class HighLevelCtrlTask:
             pi,
             self.learn_mode, reset=False)
 
-        self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]+ll_actions.shape[-1]*2] = torch.cat([ # TODO[ : KICK OFF
-            log_prob,#torch.ones_like(log_prob ),
-            ll_actions], 1)#torch.ones_like(actionsZ) ], 1)
+#        self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]+ll_actions.shape[-1]*2] = torch.cat([ # TODO[ : KICK OFF
+#            log_prob,#torch.ones_like(log_prob ),
+#            ll_actions], 1)#torch.ones_like(actionsZ) ], 1)
+        self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]*2] = reactions
 
         return self.einfo
     
     def proximaly_close_actions(self, a, actions, base_states, next_states, goods):
         self.total += len(a)
         
-        if not self.learn_mode:
-            return a
+#        if not self.learn_mode:
+#            return a
         
         pi = Normal(actions[:, a.shape[1]: a.shape[1]*2], actions[:, a.shape[1]*2:])
         og = self.ll_ctrl.optimal_goals(base_states, next_states)
+
+        return a, og
 
         mean_a = pi.log_prob(a).mean(1) 
         baseline_up = mean_a * (1. + 1. - self.ls.get_ls())

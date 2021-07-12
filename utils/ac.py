@@ -154,11 +154,13 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             if config.DL_EXPLORER and config.DOUBLE_LEARNING and not self.target:
                 d, _ = config.AGENT[0].brain.ac_explorer.act(ll_goals, states, memory, -1)
             else:
-                d, _ = config.AGENT[0].brain.ac_target.act(ll_goals, states, memory, -1)
+                with torch.no_grad():
+                    d, _ = config.AGENT[0].brain.ac_target.act(ll_goals, states, memory, -1)
 
 #TODO PROPER TEST
             if config.DOUBLE_LEARNING and not config.DDPG:
                 if probs is not None:
+                    assert False, "lol pi should be from experience otherwise this is totaly wrong ..."
                     old_prob = pi[:, config.HRL_ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE].mean(1)
                     actionsZ = pi[:, config.HRL_ACTION_SIZE+config.ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE*2]
                     new_prob = d.log_prob(actionsZ).mean(1)
@@ -181,14 +183,14 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         else:
             with torch.no_grad():
                 q = self._value(ll_goals, states, memory, actions, ind)
-        return q, dist, probs, actions
+        return q, dist, probs, actions, ll_goals
 
 # torch no grad should be whole function!!
     def qa_stable(self, goals, states, memory, actions, ind):
         if goals.shape[-1] == 3:
             forward = False
             ll_goals = actions[:, :actions.shape[-1]//3]
-            _, d, _, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
+            _, d, _, _, _ = config.AGENT[0].brain.ac_target(ll_goals, states, memory, ind, -1, False)
             actions = d.params(False)
         else:
             forward = True

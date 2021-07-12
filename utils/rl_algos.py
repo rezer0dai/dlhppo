@@ -36,30 +36,38 @@ class BrainOptimizer:
             self.loss = policy.TD3BCLoss()
         else:
             print("PPO", desc.batch_size)
-            self.loss = policy.PPOLoss(eps=desc.ppo_eps, advantages=True, boost=False)
+            self.loss = policy.PPOBCLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
-    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions):
+    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions, offline_goals):
         assert self.bellman or self.clip, "ppo can be only active when clipped ( in our implementation )!"
 
 #        if self.steps > 1:
 #            self.lr.step()
         self.steps += 1
 
+#        print("???? -> ", actions.shape, offline_actions.shape, self.bellman)
+#        assert actions.shape[-1] == offline_actions.shape[-1] * 3
+
 #        if not self.clip:#vanilla ddpg
 ##            if 0 == random.randint(0, 50): print("VANILA DDPG")
 #            pi_loss = self.loss(qa, td_targets, None, None)
         if self.bellman:#DDPG with clip
-            assert actions.shape[-1] == offline_actions.shape[-1] * 3
             
-            pi_loss = self.loss(actions[:, :offline_actions.shape[-1]], offline_actions, qa)
+            assert actions.shape[-1] == offline_actions.shape[-1] * 3
+            online_actions = actions[:, :offline_actions.shape[-1]]
+            pi_loss = self.loss(online_actions, offline_actions, qa)
 #            pi_loss = self.loss(td_targets, qa)
 #            pi_loss = self.loss(qa, td_targets)
             
         else:#PPO
 #            if 0 == random.randint(0, 50): print("PPO")
+            assert actions.shape[-1] == offline_goals.shape[-1] * 3
+            online_actions = actions[:, offline_goals.shape[-1]:2*offline_goals.shape[-1]]
             pi_loss = self.loss(qa.detach(), td_targets.detach(),
-#                probs.mean(1), dist.log_prob(actions).mean(1))
-                probs, dist.log_prob(actions).mean(1))
+                probs, dist.log_prob(actions).mean(1),
+                online_actions, offline_goals,
+                )
+
         # descent
         pi_loss = -(pi_loss * (w_is if w_is is not None else 1.)).mean()
 

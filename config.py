@@ -5,7 +5,7 @@ SAVE = False#True
 
 DDPG = True#False#
 
-DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
+DOUBLE_LEARNING = False#True# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#

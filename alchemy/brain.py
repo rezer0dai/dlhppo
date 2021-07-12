@@ -154,14 +154,14 @@ class Brain(META):
     # activate gradients ~ SELF-play
                 pi_loss = []
                 
-                q_replay, dists, probs_, offline_actions = self.ac_explorer(goals, states, memory, self.global_id, 0, mean_only, probs=probs)
+                q_replay, dists, probs_, offline_actions, offline_goals = self.ac_explorer(goals, states, memory, self.global_id, 0, mean_only, probs=probs)
 
                 # learn ACTOR ~ explorer
                 pi_loss, optimizer = backward_policy(
 #                        qa_stable, td_targets, w_is,
                         q_replay, td_targets, w_is,
                         probs_, actions, dists,
-                        offline_actions=offline_actions,
+                        offline_actions=offline_actions, offline_goals=offline_goals,
                         _eval=None, retain_graph=False)#(sync_delta-1 != s))#surrogate_loss)
 
                 cl_clip = qa_stable + torch.clamp(q_replay - qa_stable, -clip, clip)
