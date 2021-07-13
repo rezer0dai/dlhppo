@@ -5,7 +5,7 @@ SAVE = False#True
 
 DDPG = True#False#
 
-DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
+DOUBLE_LEARNING = False#True# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
@@ -74,7 +74,7 @@ PREFIX="multiprocess_220_"+ENV_NAME
 
 GAE = True
 HL_BATCH_SIZE = 4096
-LL_BATCH_SIZE = 64
+LL_BATCH_SIZE = 1024#64
 SIGMOID = False#True#
 BPO = False
 TEST_ENVS = [ENV_NAME]#, ENV_NAME, "FetchReach-v1"]#"FetchPush-v1","FetchPush-v1"]#"FetchReach-v1"]#"FetchPush-v1"]#, "FetchPush-v1", "FetchReach-v1", "FetchPush-v1"]#

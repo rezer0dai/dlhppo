@@ -300,3 +300,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             return
         for g, p in zip(self.goal_grads, self.goal_encoder.parameters()):
             p.requires_grad = g
+
+    def sample_noise(self):
+        for i in range(self.n_actors):
+            self.actor(i)(None, None)

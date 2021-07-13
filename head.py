@@ -303,8 +303,8 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
 # dekay giving one round for low level policy to adapt
     brain = [
             BrainDescription( # master :: PPO
-                memory_size=1 * config.MIN_N_SIM * HL_MAX_STEPS, batch_size=config.HL_BATCH_SIZE,
-                optim_pool_size = 1 * config.MIN_N_SIM * RECALC_PER_PUSH * HL_MAX_STEPS,
+                memory_size=n_eps * config.MIN_N_SIM * HL_MAX_STEPS, batch_size=config.HL_BATCH_SIZE,
+                optim_pool_size = n_eps * config.MIN_N_SIM * RECALC_PER_PUSH * HL_MAX_STEPS,
                 optim_epochs=10, optim_batch_size=2*config.HL_BATCH_SIZE, recalc_delay=3,
                 lr_actor=1e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,#110,

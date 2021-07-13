@@ -105,14 +105,17 @@ class DLPPOHLightning(pl.LightningModule):
 
 #        print("\n ---> ", torch.cat([ep.view(-1) for ep in self.model.enc_parameters()]).sum(), os.getpid())
 
+        steping = False
         while True:
-            loss = self.task.ENV.ll_env.agent.step(True)
+            loss = self.task.ENV.ll_env.agent.step(True, steping)
             if loss is not None:
                 return loss
-            loss = self.env.agent.step(None)
+            loss = self.env.agent.step(None, steping)
             if loss is not None:
                 #print("\n we learn HIGHLEVEL", loss)
                 break
+            steping = True
+
             data, acu_reward = next(self.playground, (None, None))
             if data is not None:
                 self.reward = data[6]

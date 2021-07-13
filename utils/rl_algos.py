@@ -73,8 +73,9 @@ class BrainOptimizer:
                 offline_actions = offline_goals
 
             advantages = td_targets.detach() - qa.detach()
+#            advantages = advantages * 2.5 / advantages.abs().mean()
             # this does not necessary works, advantages should be modified in place in buffer...
-            advantages = (advantages - advantages.mean()) / (1e-6 + advantages.std())
+#            advantages = (advantages - advantages.mean()) / (1e-6 + advantages.std())
 
             pi_loss = self.loss(
                 advantages,

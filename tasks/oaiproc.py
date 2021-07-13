@@ -68,7 +68,7 @@ class GymProxy(Process):
             self.data.put(data)
 
     def _create(self, data):
-        print(self.name, "create", data)
+#        print(self.name, "create", data)
         self.env = make_env(False, data)
         return self._reset(0)
 

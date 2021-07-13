@@ -125,7 +125,7 @@ class Brain(META):
             return
         assert len(goals)
 
-        #print("LEARNNNN->", len(goals))
+#        print("LEARNNNN->", len(goals))
 
         probs = old_probs.mean(1)
 
@@ -145,7 +145,7 @@ class Brain(META):
             # TD(0) with k-step estimators
             td_targets = n_rewards + n_discounts * n_qa
 
-        sync_delta = 3
+        sync_delta = 1 + 2 * self.global_id
         loss = 0.
         if True:#with timebudget("_learn_backprop"):
     #        if "lowlevel" in self.mp and random.random() < .1:
@@ -171,11 +171,12 @@ class Brain(META):
                         offline_actions=offline_actions, offline_goals=offline_goals, mask=mask,
                         _eval=None, retain_graph=False)#(sync_delta-1 != s))#surrogate_loss)
 
-                cl_clip = qa_stable + torch.clamp(q_replay - qa_stable, -clip, clip)
-                cl_clip = (cl_clip - td_targets).pow(2).mean(1)
+#                cl_clip = qa_stable + torch.clamp(q_replay - qa_stable, -clip, clip)
+#                cl_clip = (cl_clip - td_targets).pow(2).mean(1)
 
                 cl_raw = (q_replay - td_targets).pow(2).mean(1)
-                critic_loss = (torch.max(cl_raw, cl_clip) * (w_is if w_is is not None else 1.)).mean()
+#                critic_loss = (torch.max(cl_raw, cl_clip) * (w_is if w_is is not None else 1.)).mean()
+                critic_loss = cl_raw.mean()
 
                 pi_loss, critic_loss = self.loss_callback(pi_loss, critic_loss, self, actions, goals, states, memory, qa_stable, n_dist)
                 loss += (pi_loss + critic_loss) * .5
@@ -223,11 +224,7 @@ class Brain(META):
             logging.warning(msg)
 
     def resample(self, t):
-        return#TODO
-        if 0 != t % self.resample_delay:
-            return
-        for actor in self.ac_explorer.actor:
-            actor.sample_noise(t // self.resample_delay)
+        self.ac_explorer.sample_noise()
 
     def explore(self, goal, state, memory, t): # exploration action
         self.resample(t)

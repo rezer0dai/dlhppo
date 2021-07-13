@@ -63,7 +63,7 @@ class NoisyNet(nn.Module):
 
     def sample_noise(self):
         self.count += 1
-        if self.noise_interval:
+        if not self.noise_interval:
             return
         if self.count % self.noise_interval:
             return
@@ -76,8 +76,6 @@ class NoisyNet(nn.Module):
             layer.remove_noise()
 
     def forward(self, data):
-        self.sample_noise()
-
         #print("\n ..... ", self.sigma_0.device)
         for i, layer in enumerate(self.layers[:-1]):
             if self.relu:

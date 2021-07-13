@@ -112,21 +112,21 @@ class Agent:
         self.n_approved_simulations = 0
         self.min_n_sim = min_n_sim
 
-    def step(self, info):
+    def step(self, info, steping):
         for i, desc in enumerate(self.bd_desc):
             self.exps.step(i, desc)
 
-        return self._clocked_step(info)
+        return self._clocked_step(info, steping)
 
 #    @timebudget
-    def _clocked_step(self, info):
+    def _clocked_step(self, info, steping):
         if self.n_simulations is None:
             return None
 
         if self.n_approved_simulations < self.n_simulations:
             return None
 
-        for a_i, bd in self._select_algo():
+        for a_i, bd in self._select_algo(steping):
             if not bd.learning_repeat:
                 continue
             bd.counter += 1
@@ -204,9 +204,9 @@ class Agent:
 
         self.exps.shuffle()
 
-    def _select_algo(self):
+    def _select_algo(self, steping):
         if 0 == sum([0 != bd.counter for bd in self.bd_desc]):
-            self.counter += 1
+            self.counter += steping
         # bug here, infinite loop possible if multiple brains
         for i, bd in enumerate(self.bd_desc):
             if self.warmups[i] > 0:

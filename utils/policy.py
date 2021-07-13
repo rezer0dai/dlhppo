@@ -94,22 +94,22 @@ class PPOLoss(RLLoss):
         self.po_c = 0
         self.vg_c = 0
 
-    def ppo(self, diff, loss):
+    def ppo(self, diff, adv):
         """ paper : https://arxiv.org/abs/1707.06347
             + using grads from policy probabilities, clamping them...
             - however not efficient to use with replay buffer ( past action obsolete, ratio always clipped )
         """
         ratio = diff.exp()
 
-        surr1 = torch.clamp(ratio, min=1.-self.eps, max=1.+self.eps) * loss
-#        surr2 = ratio * loss
-        surr2 = torch.clamp(ratio, min=-100., max=100.) * loss # we clip also from bottom side!
+        surr1 = torch.clamp(ratio, min=1.-self.eps, max=1.+self.eps) * adv
+#        surr2 = ratio * adv
+        surr2 = torch.clamp(ratio, min=-100., max=100.) * adv # we clip also from bottom side!
         #  print("\nratio:", ratio, "clipped", surr1 > surr2)
         grads = torch.min(surr1, surr2)
 
         return grads
 
-    def ppo_loss(self, old_probs, new_probs, loss):
+    def ppo_loss(self, old_probs, new_probs, adv):
 # this TODO check if mean should be inside or outside like now
 #        diff = (new_probs - old_probs).mean(1)
 #        diff = (new_probs.mean(1) - old_probs.mean(1))
@@ -117,7 +117,7 @@ class PPOLoss(RLLoss):
         if config.DOUBLE_LEARNING:
             diff = diff * .5
 
-        if loss.grad_fn is None:
+        if adv.grad_fn is None:
             # debug
             vg_c = self.vg_c
             if diff.abs().mean() < 2:
@@ -129,19 +129,22 @@ class PPOLoss(RLLoss):
                 print("PPO too off, from sampled actions, policies problems!! ",
                         len(diff), self.vg_c, self.po_c, new_probs.mean(), old_probs.mean())
 
-        return self.ppo(diff, loss)
+        return self.ppo(diff, adv)
 
     def __call__(self, qa, td_targets, old_probs, new_probs):
-        loss = self.pi_error(qa, td_targets)
-        loss = loss.view(len(loss), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
-        return self.ppo_loss(old_probs, new_probs, loss)
+        adv = self.pi_error(qa, td_targets)
+        adv = adv.view(len(adv), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
+        return self.ppo_loss(old_probs, new_probs, adv)
 
 class PPOBCLoss(PPOLoss):
-    def __call__(self, loss, old_probs, new_probs, online_actions, offline_actions, mask):
-        loss1 = loss.view(len(loss), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
+    def __call__(self, adv, old_probs, new_probs, online_actions, offline_actions, mask):
+        loss1 = adv.view(len(adv), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
         loss2 = F.mse_loss(offline_actions, online_actions) * mask
-#        print("\n\n ----> %.2f ----> %.2f\n", loss1, loss2)
-        return self.ppo_loss(old_probs, new_probs, loss1) + .2 * self.ppo_loss(old_probs, new_probs, -loss2)
+        #print("\n\n ----> %.2f ----> %.2f\n", loss1, loss2)
+        loss1x = self.ppo_loss(old_probs, new_probs, loss1)
+        loss2x = self.ppo_loss(old_probs, new_probs, -loss2)
+#        print("NEW LOSS", -loss1.mean(), "-->", -loss1x.mean(), "][", -loss2.mean(), "==>", -loss2x.mean(), "??", offline_actions.sum(), "...")
+        return loss1x + .1 * loss2
 
 class TD3BCLoss:
     def td3bc(self, qa):
@@ -156,7 +159,9 @@ class TD3BCLoss:
         qa = qa.view(len(qa), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
 
         bc_loss = F.mse_loss(offline_actions, online_actions) * mask
-        return self.td3bc(qa) - bc_loss
+        loss = self.td3bc(qa)
+#        print("\nTD3+BC", loss.mean(), bc_loss.mean(), "??", offline_actions.sum(), "...")
+        return loss - bc_loss
 
 class DDPGLoss(RLLoss):
     def ddpg(self, loss):
