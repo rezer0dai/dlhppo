@@ -92,7 +92,7 @@ class DLPPOHLightning(pl.LightningModule):
 
         high_level_task = HighLevelCtrlTask("dlppoh_dock_%i"%rank, KEYID, self.model)
 
-        self.print("dlppoh_dock_%i"%rank)
+        #self.print("dlppoh_dock_%i"%rank)
 
         self.env, self.task = install_highlevel(high_level_task, KEYID, self.model)
         self.ready = True

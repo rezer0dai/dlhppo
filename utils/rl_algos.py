@@ -38,7 +38,7 @@ class BrainOptimizer:
             print("PPO", desc.batch_size)
             self.loss = policy.PPOBCLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
-    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions, offline_goals):
+    def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions, offline_goals, mask):
         assert self.bellman or self.clip, "ppo can be only active when clipped ( in our implementation )!"
 
 #        if self.steps > 1:
@@ -55,13 +55,15 @@ class BrainOptimizer:
             
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
             online_actions = actions[:, offline_actions.shape[-1]*2:]
-            pi_loss = self.loss(online_actions, offline_actions, qa)
+            pi_loss = self.loss(online_actions, offline_actions, qa - td_targets, mask)
+
 #            pi_loss = self.loss(td_targets, qa)
 #            pi_loss = self.loss(qa, td_targets)
             
         else:#PPO
 #            if 0 == random.randint(0, 50): print("PPO")
 #            assert actions.shape[-1] == offline_goals.shape[-1] * 3
+
             if actions.shape[-1] != offline_goals.shape[-1] * 3:
                 online_actions = actions[:, offline_actions.shape[-1]*2:]
             else:
@@ -69,7 +71,7 @@ class BrainOptimizer:
                 offline_actions = offline_goals
             pi_loss = self.loss(qa.detach(), td_targets.detach(),
                 probs, dist.log_prob(actions).mean(1),
-                online_actions, offline_actions,
+                online_actions, offline_actions, mask
                 )
 
         # descent

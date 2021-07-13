@@ -47,9 +47,9 @@ CORE_GOAL_SIZE = CORE_ORIGINAL_GOAL_SIZE
 
 HRL_HIGH_STEP = 10#25#
 HRL_STEP_COUNT = 10#2#
-HRL_ACTION_SIZE = 64#16#
-INFO_BOTTLENECK_SIZE = 16#4#
-HRL_GOAL_SIZE = 10#8#16#
+HRL_ACTION_SIZE = 8#64#8
+INFO_BOTTLENECK_SIZE = 32#64
+HRL_GOAL_SIZE = 4#10#8
 
 HER_RATIO = .6#.5#.4#
 
@@ -80,7 +80,7 @@ BPO = False
 TEST_ENVS = [ENV_NAME]#, ENV_NAME, "FetchReach-v1"]#"FetchPush-v1","FetchPush-v1"]#"FetchReach-v1"]#"FetchPush-v1"]#, "FetchPush-v1", "FetchReach-v1", "FetchPush-v1"]#
 
 HI_ARCH = [256]*3#400, 300]#
-LO_ARCH = [64]*3
+LO_ARCH = [66]*3
 RELU = True#False#
 WD = 1e-3
 
@@ -90,5 +90,3 @@ N_HL_ACTORS = 1
 N_LL_ACTORS = 1
 
 AGENT = []
-
-
