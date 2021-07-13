@@ -241,7 +241,7 @@ class HighLevelCtrlTask:
             pi,
             self.learn_mode, reset=False)
 
-        assert action.shape[-1] >= ll_actions.shape[-1]*2
+        assert actions.shape[-1] >= ll_actions.shape[-1]*2
         self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]+ll_actions.shape[-1]*2] = torch.cat([ # TODO[ : KICK OFF
             log_prob,#torch.ones_like(log_prob ),
             ll_actions], 1)#torch.ones_like(actionsZ) ], 1)
