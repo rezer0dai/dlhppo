@@ -144,7 +144,7 @@ class PPOBCLoss(PPOLoss):
         loss1x = self.ppo_loss(old_probs, new_probs, loss1)
         loss2x = self.ppo_loss(old_probs, new_probs, -loss2)
 #        print("NEW LOSS", -loss1.mean(), "-->", -loss1x.mean(), "][", -loss2.mean(), "==>", -loss2x.mean(), "??", offline_actions.sum(), "...")
-        return loss1x + .1 * loss2
+        return loss1x + .1 * loss2x
 
 class TD3BCLoss:
     def td3bc(self, qa):
