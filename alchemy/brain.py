@@ -119,7 +119,7 @@ class Brain(META):
     #@timebudget
     def _learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
         if True:#with timebudget("_learn_debatch"):
-            w_is, (goals, states, memory, actions, old_probs, r, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
+            w_is, (goals, states, memory, actions, old_probs, _, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
 
         if not len(goals):
             return
@@ -158,11 +158,11 @@ class Brain(META):
                         goals, states, memory, self.global_id, 0, mean_only, 
                         probs=probs, old_pis=actions)
 
+                mask = torch.ones(len(offline_goals))
                 if actions.shape[-1] != offline_goals.shape[-1] * 3:
-                    mask = 0. == r
-#                    print("\n\n???", actions.shape, sum(mask), r)
-                else:
-                    mask = torch.ones(len(offline_goals))
+                    mask[0. != n_rewards.sum(1)] = -1.
+#                    print("\n\n--->", actions.shape, sum(mask))
+
                 # learn ACTOR ~ explorer
                 pi_loss, optimizer = backward_policy(
 #                        qa_stable, td_targets, w_is,

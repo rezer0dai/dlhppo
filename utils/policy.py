@@ -137,8 +137,7 @@ class PPOLoss(RLLoss):
         return self.ppo_loss(old_probs, new_probs, loss)
 
 class PPOBCLoss(PPOLoss):
-    def __call__(self, qa, td_targets, old_probs, new_probs, online_actions, offline_actions, mask):
-        loss = self.pi_error(qa, td_targets)
+    def __call__(self, loss, old_probs, new_probs, online_actions, offline_actions, mask):
         loss1 = loss.view(len(loss), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
         loss2 = F.mse_loss(offline_actions, online_actions) * mask
 #        print("\n\n ----> %.2f ----> %.2f\n", loss1, loss2)
@@ -153,7 +152,7 @@ class TD3BCLoss:
         lmbda = 2.5 / qa.abs().mean().detach()
         return lmbda * qa.mean()
 
-    def __call__(self, online_actions, offline_actions, qa):
+    def __call__(self, online_actions, offline_actions, qa, mask):
         qa = qa.view(len(qa), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
 
         bc_loss = F.mse_loss(offline_actions, online_actions) * mask

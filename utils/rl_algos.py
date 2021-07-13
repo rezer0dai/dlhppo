@@ -55,7 +55,9 @@ class BrainOptimizer:
             
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
             online_actions = actions[:, offline_actions.shape[-1]*2:]
-            pi_loss = self.loss(online_actions, offline_actions, qa - td_targets, mask)
+            pi_loss = self.loss(online_actions, offline_actions, 
+                    qa,# - td_targets, 
+                    mask)
 
 #            pi_loss = self.loss(td_targets, qa)
 #            pi_loss = self.loss(qa, td_targets)
@@ -69,7 +71,13 @@ class BrainOptimizer:
             else:
                 online_actions = actions[:, offline_goals.shape[-1]*2:]
                 offline_actions = offline_goals
-            pi_loss = self.loss(qa.detach(), td_targets.detach(),
+
+            advantages = td_targets.detach() - qa.detach()
+            # this does not necessary works, advantages should be modified in place in buffer...
+            advantages = (advantages - advantages.mean()) / (1e-6 + advantages.std())
+
+            pi_loss = self.loss(
+                advantages,
                 probs, dist.log_prob(actions).mean(1),
                 online_actions, offline_actions, mask
                 )

@@ -189,7 +189,7 @@ from hrl import ReacherHRL
 
 def install_lowlevel(low_level_task, fm, do_sampling):
     KEYID = config.PREFIX+"_ll"
-    RECALC_PER_PUSH = 20
+    RECALC_PER_PUSH = 5
     LL_GOAL_SIZE = config.HRL_ACTION_SIZE
     LL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     LL_MAX_STEPS = 1 + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT
@@ -204,8 +204,8 @@ def install_lowlevel(low_level_task, fm, do_sampling):
             do_sample(senv, seed, goal_encoder, state_encoder)
     state_encoder.stop_norm()
 
-    n_eps = 1#1 if not config.DDPG else 10
-    delay = 1#20
+    n_eps = 1 if not config.DDPG else 20
+    delay = 10#20
     repeat = 10#1 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.LL_BATCH_SIZE) // 2
     optim_n = 1
 
@@ -215,7 +215,7 @@ def install_lowlevel(low_level_task, fm, do_sampling):
                 optim_pool_size = n_eps * config.MIN_N_SIM * RECALC_PER_PUSH * config.HRL_HIGH_STEP,
                 optim_epochs=10, optim_batch_size=2*config.LL_BATCH_SIZE, recalc_delay=7,
                 lr_actor=3e-4, learning_delay=delay, learning_repeat=repeat,
-                warmup = 0,
+                warmup = config.HRL_STEP_COUNT * config.HRL_STEP_COUNT * 2,#2eps just sit and look
                 sync_delta_a=3, sync_delta_c=2, tau_actor=5e-2, tau_critic=5e-2,
                 bellman=config.DDPG, ppo_eps=2e-1 if not config.DDPG else None, natural=False, mean_only=False, separate_actors=False),
     ]
@@ -287,7 +287,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     HL_GOAL_SIZE = config.CORE_GOAL_SIZE
     HL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     HL_MAX_STEPS = config.HRL_HIGH_STEP
-    RECALC_PER_PUSH = (1 + config.FLOATING_STEP) * 10
+    RECALC_PER_PUSH = 3 if not config.FLOATING_STEP else 5
 
     # if ergoJR it is already normalized goal!
 #    goal_encoder = GoalGlobalNorm(HL_GOAL_SIZE)# if not config.ERGOJR else GoalIdentity(HL_GOAL_SIZE)
@@ -295,9 +295,9 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     hl_state_encoder = GlobalNormalizerWithTimeEx(HL_STATE_SIZE, False)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
     state_encoder = hl_state_encoder#GlobalNormalizerWithTime(goal_encoder, HL_STATE_SIZE, 1)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
 
-    n_eps = 1#5 if not config.FLOATING_STEP else 1
-    delay = 10#n_eps * HL_MAX_STEPS
-    repeat = 20#2 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.HL_BATCH_SIZE) // 3
+    n_eps = 1 + 4096 // (config.MIN_N_SIM * config.HRL_HIGH_STEP * RECALC_PER_PUSH)#1#5 if not config.FLOATING_STEP else 1
+    delay = n_eps * HL_MAX_STEPS
+    repeat = 80#2 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.HL_BATCH_SIZE) // 3
     #repeat = (config.MIN_N_SIM * delay * RECALC_PER_PUSH) // 100
 
 # dekay giving one round for low level policy to adapt

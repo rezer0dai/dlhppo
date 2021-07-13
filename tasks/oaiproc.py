@@ -22,6 +22,7 @@ def ergojr_make(render):
             return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=False, gripper=True, backlash=config.BACKLASH)
         if 4 == config.ACTION_SIZE:
             return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=True, gripper=False, backlash=config.BACKLASH)
+#            return ErgoReacherEnv(not render, goals=10, multi_goal=True, terminates=False, simple=True, gripper=False, backlash=config.BACKLASH)
         if 6 == config.ACTION_SIZE:
             return ErgoReacherEnv(not render, goals=1, multi_goal=False, terminates=False, simple=False, gripper=False, backlash=config.BACKLASH)
         assert False

@@ -35,6 +35,8 @@ from tasks.oaiproc import GymGroup, GymRender
 
 class LowLevelCtrlTask:
     def __init__(self, dock, prefix):
+        self.total = 0
+
         self.dock = dock
         self.prefix = prefix
         self.ENV = None#GymGroup(config.TEST_ENVS, dock, config.TOTAL_ENV, prefix)
@@ -129,14 +131,23 @@ class LowLevelCtrlTask:
         return einfo[1]
 
     def step(self, pi):
+        self.total += config.MIN_N_SIM
+
+        actions = pi[:, :pi.shape[1]//3].cpu().numpy()
+        if config.DDPG and self.total < 10000:
+            actions = np.stack([self.RENDER.env.action_space.sample() for _ in range(len(actions))])
+
         if self.learn_mode:
             einfo = self.ENV.step(
-                    pi[:, :pi.shape[1]//3].cpu().numpy(), ones(len(pi)))# if sum(self.goods) else None)
+                    actions, ones(len(pi)))# if sum(self.goods) else None)
         else:
             einfo = self.RENDER.step(
-                    pi[:, :pi.shape[1]//3].cpu().numpy())
+                    actions)
 
-        return self._state(einfo, pi[:, :config.ACTION_SIZE], pi, self.learn_mode, False)
+        info = self._state(einfo, torch.from_numpy(actions).to(pi.device), pi, self.learn_mode, False)
+        if config.DDPG:
+            info.pi[:, :pi.shape[1]//3] = torch.from_numpy(actions).to(pi.device)
+        return info
 
     def goal_met(self, _total_reward, _last_reward):
         return False

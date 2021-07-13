@@ -136,15 +136,19 @@ class DLPPOHLightning(pl.LightningModule):
         return None
 
         #if self.model.loss.requires_grad:
-    def training_step(self, batch, nb_batch) -> OrderedDict:
+    def training_step(self, batch, nb_batch, optimizer_idx=-1) -> OrderedDict:
         loss = None
         while loss is None:
-          loss = self._training_step(os.getpid())
+            loss = self._training_step(os.getpid())
         return OrderedDict({'loss': loss, 'log': "testlog%i"%nb_batch, 'progress_bar': "pb%i"%nb_batch})
             
     def configure_optimizers(self) -> List[Optimizer]:
-        optimizer = optim.Adam(self.model.explorer_parameters(), lr=3e-4)
-        return [optimizer]
+        return [optim.Adam(self.model.explorer_parameters(), lr=5e-4)]
+        return [
+                optim.Adam(self.model.actor_explorer_parameters(0, "highpi"), lr=3e-4),
+                optim.Adam(self.model.actor_explorer_parameters(0, "lowpi"), lr=1e-3),
+                *[optim.Adam(self.model.critic_explorer_parameters(i, "lowpi"), lr=1e-3) for i in range(2)],
+                ]
     
     def train_dataloader(self) -> DataLoader:
         dataset = RLDummyDataSet()
