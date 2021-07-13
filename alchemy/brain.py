@@ -154,7 +154,9 @@ class Brain(META):
     # activate gradients ~ SELF-play
                 pi_loss = []
                 
-                q_replay, dists, probs_, offline_actions, offline_goals = self.ac_explorer(goals, states, memory, self.global_id, 0, mean_only, probs=probs)
+                q_replay, dists, probs_, offline_actions, offline_goals = self.ac_explorer(
+                        goals, states, memory, self.global_id, 0, mean_only, 
+                        probs=probs, old_pis=actions)
 
                 # learn ACTOR ~ explorer
                 pi_loss, optimizer = backward_policy(

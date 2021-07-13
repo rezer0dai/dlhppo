@@ -54,22 +54,26 @@ class BrainOptimizer:
         if self.bellman:#DDPG with clip
             
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
-            online_actions = actions[:, :offline_actions.shape[-1]]
+            online_actions = actions[:, offline_actions.shape[-1]*2:]
             pi_loss = self.loss(online_actions, offline_actions, qa)
 #            pi_loss = self.loss(td_targets, qa)
 #            pi_loss = self.loss(qa, td_targets)
             
         else:#PPO
 #            if 0 == random.randint(0, 50): print("PPO")
-            assert actions.shape[-1] == offline_goals.shape[-1] * 3
-            online_actions = actions[:, offline_goals.shape[-1]:2*offline_goals.shape[-1]]
+#            assert actions.shape[-1] == offline_goals.shape[-1] * 3
+            if actions.shape[-1] != offline_goals.shape[-1] * 3:
+                online_actions = actions[:, offline_actions.shape[-1]*2:]
+            else:
+                online_actions = actions[:, offline_goals.shape[-1]*2:]
+                offline_actions = offline_goals
             pi_loss = self.loss(qa.detach(), td_targets.detach(),
                 probs, dist.log_prob(actions).mean(1),
-                online_actions, offline_goals,
+                online_actions, offline_actions,
                 )
 
         # descent
-        pi_loss = -(pi_loss * (w_is if w_is is not None else 1.)).mean()
+        pi_loss = -pi_loss.mean()#(pi_loss * (w_is if w_is is not None else 1.)).mean()
 
         # learn!
 #        self.brain.backprop(

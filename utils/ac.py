@@ -128,7 +128,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 #            for p in self.critic[c_i].parameters():
 #                yield p
 
-    def forward_impl(self, goals, states, memory, a_i, mean_only, probs = None):# = 0):
+    def forward_impl(self, goals, states, memory, a_i, mean_only, probs = None, old_pis=None):# = 0):
         assert not mean_only
 
         a_i = a_i % self.n_actors
@@ -160,9 +160,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 #TODO PROPER TEST
             if config.DOUBLE_LEARNING and not config.DDPG:
                 if probs is not None:
-                    assert False, "lol pi should be from experience otherwise this is totaly wrong ..."
-                    old_prob = pi[:, config.HRL_ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE].mean(1)
-                    actionsZ = pi[:, config.HRL_ACTION_SIZE+config.ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE*2]
+                    old_prob = old_pis[:, config.HRL_ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE].mean(1)
+                    actionsZ = old_pis[:, config.HRL_ACTION_SIZE+config.ACTION_SIZE:config.HRL_ACTION_SIZE+config.ACTION_SIZE*2]
                     new_prob = d.log_prob(actionsZ).mean(1)
                     probs = probs.clone() + (new_prob - old_prob)# * .1#5
 
@@ -176,8 +175,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         actions = pi[:, :pi.shape[-1]//3]
         return dist, probs, actions, goals, ll_goals
 
-    def forward(self, goals, states, memory, ind, a_i, mean_only, probs = None):# = 0):
-        dist, probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, a_i, mean_only, probs)
+    def forward(self, goals, states, memory, ind, a_i, mean_only, probs = None, old_pis=None):# = 0):
+        dist, probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, a_i, mean_only, probs, old_pis)
         if probs is not None:
             q = self._value(ll_goals, states, memory, actions, ind)
         else:

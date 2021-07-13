@@ -204,9 +204,9 @@ def install_lowlevel(low_level_task, fm, do_sampling):
             do_sample(senv, seed, goal_encoder, state_encoder)
     state_encoder.stop_norm()
 
-    n_eps = 1 if not config.DDPG else 10
-    delay = 20
-    repeat = 1 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.LL_BATCH_SIZE) // 2
+    n_eps = 1#1 if not config.DDPG else 10
+    delay = 1#20
+    repeat = 10#1 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.LL_BATCH_SIZE) // 2
     optim_n = 1
 
     brain = [
@@ -295,9 +295,9 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     hl_state_encoder = GlobalNormalizerWithTimeEx(HL_STATE_SIZE, False)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
     state_encoder = hl_state_encoder#GlobalNormalizerWithTime(goal_encoder, HL_STATE_SIZE, 1)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
 
-    n_eps = 5 if not config.FLOATING_STEP else 1
-    delay = n_eps * HL_MAX_STEPS
-    repeat = 2 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.HL_BATCH_SIZE) // 3
+    n_eps = 1#5 if not config.FLOATING_STEP else 1
+    delay = 10#n_eps * HL_MAX_STEPS
+    repeat = 20#2 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.HL_BATCH_SIZE) // 3
     #repeat = (config.MIN_N_SIM * delay * RECALC_PER_PUSH) // 100
 
 # dekay giving one round for low level policy to adapt
