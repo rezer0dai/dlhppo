@@ -118,6 +118,7 @@ class Brain(META):
 
     #@timebudget
     def _learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
+        self.remove_noise()
         if True:#with timebudget("_learn_debatch"):
             w_is, (goals, states, memory, actions, old_probs, _, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
 
@@ -225,6 +226,8 @@ class Brain(META):
 
     def resample(self, t):
         self.ac_explorer.sample_noise()
+    def remove_noise(self):
+        self.ac_explorer.remove_noise()
 
     def explore(self, goal, state, memory, t): # exploration action
         self.resample(t)

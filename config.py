@@ -10,17 +10,17 @@ DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
 CRITIC_UNORMED = False#True#
-TIMEFEAT = True#False#
+TIMEFEAT = False#True#
 TF_LOW = True#None#
 BLIND = True#False#
 NO_GOAL = False#True#
-GAMMA = .97
+GAMMA = .85 if TIMEFEAT else .97
 SELECT_EXP = False#True#
 LEAK2LL = False#True#
 
 MUJOCO = False#True#
-ERGOJR = False#True#
 PANDA = True#False#
+ERGOJR = False#True#
 
 BACKLASH = False
 
@@ -59,7 +59,7 @@ HRL_HIGH_N_STEP = 3*HRL_HIGH_STEP//2#40#20#HRL_HIGH_STEP // 10 * 8
 HRL_ACTION_TEST_RATIO = None#.15#1.#
 HRL_HINDSIGHTACTION_HORIZON = HRL_HIGH_STEP * 10#40#100#
 
-MIN_N_SIM = 20#40#100#
+MIN_N_SIM = 60#100#
 TOTAL_ENV = MIN_N_SIM#(1 + PUSHER)*MIN_N_SIM
 DEVICE = "cpu"
 

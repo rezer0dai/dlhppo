@@ -36,6 +36,8 @@ class Actor(nn.Module): # decorator
 
         if goals is None:
             return self.net.sample_noise()
+        if states is None:
+            return self.net.remove_noise()
 
         #assert torch.float32 == goals.dtype
         goal = self.ibottleneck(goals.to(self.device()))

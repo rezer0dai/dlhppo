@@ -31,7 +31,6 @@ class NoisyLinear(nn.Linear):
         torch.randn(self.noise.size(), out=self.noise)
 
     def remove_noise(self):
-        assert not self.noise.sum()
         torch.zeros(self.noise.size(), out=self.noise)
 
 class NoisyNet(nn.Module):
@@ -70,8 +69,10 @@ class NoisyNet(nn.Module):
         l = random.randint(0, len(self.layers) - 1)
         self.layers[l].sample_noise()
 
+        for l in self.layers:
+            l.sample_noise()
+
     def remove_noise(self):
-        assert False
         for layer in self.layers:
             layer.remove_noise()
 

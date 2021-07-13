@@ -107,13 +107,15 @@ class DLPPOHLightning(pl.LightningModule):
 
         steping = False
         while True:
+
             loss = self.task.ENV.ll_env.agent.step(True, steping)
             if loss is not None:
-                return loss
+                break
+
             loss = self.env.agent.step(None, steping)
             if loss is not None:
-                #print("\n we learn HIGHLEVEL", loss)
                 break
+
             steping = True
 
             data, acu_reward = next(self.playground, (None, None))
@@ -146,11 +148,11 @@ class DLPPOHLightning(pl.LightningModule):
         return OrderedDict({'loss': loss, 'log': "testlog%i"%nb_batch, 'progress_bar': "pb%i"%nb_batch})
             
     def configure_optimizers(self) -> List[Optimizer]:
-        return [optim.Adam(self.model.explorer_parameters(), lr=5e-4)]
+        return [optim.Adam(self.model.explorer_parameters(), lr=3e-4)]
         return [
-                optim.Adam(self.model.actor_explorer_parameters(0, "highpi"), lr=3e-4),
                 optim.Adam(self.model.actor_explorer_parameters(0, "lowpi"), lr=1e-3),
-                *[optim.Adam(self.model.critic_explorer_parameters(i, "lowpi"), lr=1e-3) for i in range(2)],
+                optim.Adam(self.model.actor_explorer_parameters(0, "highpi"), lr=3e-4),
+                optim.Adam([p for p in self.model.critic_explorer_parameters(i, "lowpi") for i in range(2)], lr=1e-3),
                 ]
     
     def train_dataloader(self) -> DataLoader:

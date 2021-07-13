@@ -303,4 +303,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
     def sample_noise(self):
         for i in range(self.n_actors):
-            self.actor(i)(None, None)
+            self.actor(i)(None, True)
+    def remove_noise(self):
+        for i in range(self.n_actors):
+            self.actor(i)(True, None)

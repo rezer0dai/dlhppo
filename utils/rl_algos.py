@@ -54,9 +54,9 @@ class BrainOptimizer:
         if self.bellman:#DDPG with clip
             
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
-            online_actions = actions[:, offline_actions.shape[-1]*2:]
+            online_actions = actions[:, :offline_actions.shape[-1]]
             pi_loss = self.loss(online_actions, offline_actions, 
-                    qa,# - td_targets, 
+                    qa - td_targets, 
                     mask)
 
 #            pi_loss = self.loss(td_targets, qa)
@@ -67,12 +67,13 @@ class BrainOptimizer:
 #            assert actions.shape[-1] == offline_goals.shape[-1] * 3
 
             if actions.shape[-1] != offline_goals.shape[-1] * 3:
-                online_actions = actions[:, offline_actions.shape[-1]*2:]
+                online_actions = actions[:, :offline_actions.shape[-1]:]
             else:
+                assert actions.shape[-1] == offline_goals.shape[-1] * 3
                 online_actions = actions[:, offline_goals.shape[-1]*2:]
                 offline_actions = offline_goals
 
-            advantages = td_targets.detach() - qa.detach()
+            advantages = td_targets - qa.detach()
 #            advantages = advantages * 2.5 / advantages.abs().mean()
             # this does not necessary works, advantages should be modified in place in buffer...
 #            advantages = (advantages - advantages.mean()) / (1e-6 + advantages.std())
