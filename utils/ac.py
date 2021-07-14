@@ -8,13 +8,13 @@ import config
 
 class ActorCritic(nn.Module): # share common preprocessing layer!
     # encoder could be : RNN, CNN, RBF, BatchNorm / GlobalNorm, others.. and combination of those
-    def __init__(self, full_model, encoder, goal_encoder, actor, critic, n_agents, target, global_id):
+    def __init__(self, full_model, encoder, goal_encoder, actor, critic, n_agents, target, highpi):
         super().__init__()
 
         self.n_actors = len(actor)
         self.n_critics = len(critic)
 
-        self.global_id = global_id
+        self.highpi = highpi
 
         self.target = target
 
@@ -66,17 +66,17 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
         self.full_model = full_model
 
-    def decorate(self, sid, global_id=None, target=None):
-        if global_id is None:
-            global_id = self.global_id
+    def decorate(self, sid, highpi=None, target=None):
+        if highpi is None:
+            highpi = self.highpi
 
         if config.N_CRITICS != 1 or target is None:
             target = self.target # we want this swap only for critic and only if we target exchanged ( HL<->LL ) critic trainig
 
-        return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if global_id else "lowpi")
+        return sid+"_%s_%s"%("target" if target else "explorer", "highpi" if highpi else "lowpi")
 
     def critic(self, i):
-        return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.global_id else not self.target)]
+        return self.full_model[self.decorate("critic_%i"%i, 0, self.target if not self.highpi else not self.target)]
 
     def actor(self, i):
         return self.full_model[self.decorate("actor_%i"%i)]
@@ -90,48 +90,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             return self.full_model[self.decorate("goal_encoder")](x)
 
 
-#    def parameters(self):
-#        for p in self.actor_parameters():
-#            yield p
-#        for p in self.critic_parameters(-1):
-#            yield p
-#
-## TODO : where to make sense to train encoder -> at Actor, Critic, or both ??
-#    def actor_parameters(self):
-#        for actor in self.actor:
-#            for p in actor.parameters():
-#                yield p
-#
-#        if config.DOUBLE_LEARNING and self.global_id:#False:#
-#            eid = 0#(2 == len(config.AGENT))
-#            for actor in (config.AGENT[eid].brain.ac_explorer.actor if config.DL_EXPLORER else config.AGENT[eid].brain.ac_target.actor):
-#                for p in actor.parameters():
-#                    yield p
-#
-#        if self.goal_encoder is not None:
-#            for p in self.goal_encoder.parameters():
-#                if p.requires_grad:
-#                    yield p
-#
-#    def critic_parameters(self, ind):
-#        c_i = ind if ind < len(self.critic) else 0
-#        for p in self.encoder.parameters():
-#            if p.requires_grad:
-#                yield p
-#        if -1 == ind:
-#            for p in self.critic[self.global_id % len(self.critic)].parameters():
-#                yield p
-##            for critic in self.critic:
-##                for p in critic.parameters():
-##                    yield p
-#        else:
-#            for p in self.critic[c_i].parameters():
-#                yield p
-
-    def forward_impl(self, goals, states, memory, a_i, mean_only, probs = None, old_pis=None):# = 0):
-        assert not mean_only
-
-        a_i = a_i % self.n_actors
+    def forward_direct(self, goals, states, memory, a_i):
         if config.LLACTOR_UNOMRED and 3 != goals.shape[-1]:
             dist = self.actor(a_i)(
                     goals.view(-1, goals.shape[1] // self.n_agents), 
@@ -143,15 +102,29 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             dist = self.actor(a_i)(
                     goals_.view(goals.shape[0], -1),
                     states_.view(-1, states.shape[1] // self.n_agents))
-        pi = dist.params(mean_only)
+        return dist
+
+    def forward_impl(self, goals, states, memory, a_i, mean_only, probs = None, old_pis=None, double=False):# = 0):
+        assert not mean_only
+
+        a_i = a_i % self.n_actors
+        if double:
+            assert config.DOUBLE_LEARNING and self.target and self.highpi
+            with torch.no_grad():
+                dist = self.forward_direct(goals, states, memory, a_i)
+        else:
+            dist = self.forward_direct(goals, states, memory, a_i)
+
+        pi = dist.params(False)
 
         if goals.shape[-1] == 3:
-            forward = False
-            ll_goals = pi[:, :pi.shape[-1]//3]
+            ll_goals = pi[:, :pi.shape[-1]//3].detach()
 
 #TODO DOUBLEL
             # incompatible with LSTM/GRU memory, or we need to pass it at the end of states like goal we do now
-            if config.DL_EXPLORER and config.DOUBLE_LEARNING and not self.target:
+            assert self.highpi
+
+            if double:#to keep gradients flowing
                 d, _ = config.AGENT[0].brain.ac_explorer.act(ll_goals, states, memory, -1)
             else:
                 with torch.no_grad():
@@ -167,7 +140,6 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
             pi = d.params(mean_only)
         else:
-            forward = True
             ll_goals = goals.clone()
             limit = goals.shape[-1] if not config.TIMEFEAT else -1
             goals = states[:, :limit][:, -config.CORE_ORIGINAL_GOAL_SIZE:]
@@ -198,14 +170,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
             goals = states[:, :limit][:, -config.CORE_ORIGINAL_GOAL_SIZE:]
 
         actions = actions[:, :actions.shape[-1]//3]
-        return self._value(ll_goals, states, memory, 
-#                torch.cat([actions, ll_goals, ], 1), 
-                actions,# if not config.NO_GOAL else torch.cat([actions, ll_goals, ], 1), 
-
-#TODO oldsxuul
-#                ll_goals if self.global_id else torch.cat([actions, ll_goals, ], 1),
-
-                ind)#, forward)
+        return self._value(ll_goals, states, memory, actions, ind)
 
     def _value(self, goals, states, memory, actions, ind, forward=True):#False):
 #        assert 3 == goals.shape[-1]
@@ -215,8 +180,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 #TODO oldsxuul->False:#
         if forward: #TODO remove -> it is here because of normalization!!
             # TODO REVERSED
-#            if True:#self.global_id:#
-            if 1 != config.N_CRITICS or self.global_id:
+#            if True:#self.highpi:#
+            if 1 != config.N_CRITICS or self.highpi:
                 if self.target:
                     return config.AGENT[1].brain.ac_target._value(goals, states, memory, actions, ind, False)
                 else:
@@ -249,8 +214,8 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
         return q.mean(dim=1, keepdim=True)
 
 #also torch no grad whole function should be!!
-    def suboptimal_qa(self, goals, states, memory):
-        dist, _probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, 0, False)
+    def suboptimal_qa(self, goals, states, memory, double):
+        dist, _probs, actions, goals, ll_goals = self.forward_impl(goals, states, memory, 0, False, double=double)
         q = self._value(ll_goals, states, memory, 
                 actions,# if not config.NO_GOAL else torch.cat([actions, ll_goals, ], 1), 
                 -1)
@@ -267,6 +232,7 @@ class ActorCritic(nn.Module): # share common preprocessing layer!
 
     def act(self, goals, states, memory, ind):
         if self.n_actors > 1 and -1 == ind:
+            assert False
             q = torch.cat([ 
                 self.forward(goals, states, memory, -1, i, False
                     )[0] for i in range(self.n_actors) ], 1

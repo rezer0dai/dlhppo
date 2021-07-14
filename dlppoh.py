@@ -134,7 +134,7 @@ class LowLevelCtrlTask:
         self.total += config.MIN_N_SIM
 
         actions = pi[:, :pi.shape[1]//3].cpu().numpy()
-        if config.DDPG and self.total < 10000:
+        if config.DDPG and self.total < config.HRL_STEP_COUNT * config.HRL_STEP_COUNT * 2:
             actions = np.stack([self.RENDER.env.action_space.sample() for _ in range(len(actions))])
 
         if self.learn_mode:

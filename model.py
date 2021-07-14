@@ -46,10 +46,6 @@ class Actor(nn.Module): # decorator
         if config.BLIND:
             if config.HRL_GOAL_SIZE == goal.shape[-1]:
                 state = state[:, :config.LL_STATE_SIZE-config.TIMEFEAT] # only arm + gripper
-#                if not config.ERGOJR:
-#                    state = state[:, :10] # only arm + gripper
-#                else:
-#                    state = state[:, :config.CORE_ORIGINAL_GOAL_SIZE * 2 + config.ACTION_SIZE * 2]
 
         state = state.to(self.device())
         state = torch.cat([goal, state], 1)
@@ -61,32 +57,13 @@ class ActorFactory: # proxy
     def __init__(self, layers, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale=.3):
 
         ll = [(l - config.CORE_ORIGINAL_GOAL_SIZE - config.TIMEFEAT - config.CORE_ORIGINAL_GOAL_SIZE) if 0 == i else l for i, l in enumerate(layers)]
-#SHAREDMININETGOAL
-#        ll = [33 if 0 == i else l for i, l in enumerate(layers)]
 
         if config.BLIND:
             if config.ACTION_SIZE == action_size:
                 ll[0] = config.LL_STATE_SIZE + config.HRL_GOAL_SIZE - config.TIMEFEAT
-#                if not config.ERGOJR:
-#                    ll[0] = 10+config.HRL_GOAL_SIZE
-#                else:
-#                    ll[0] = config.CORE_ORIGINAL_GOAL_SIZE * 2 + config.ACTION_SIZE * 2 + config.HRL_GOAL_SIZE
-#
-#                ll[0] = 10+config.HRL_ACTION_SIZE
-#                ll[0] = 13+config.HRL_GOAL_SIZE
-#                ll[0] = 6 + config.HRL_GOAL_SIZE
-
 
         layers = [l for layer in ll for l in [layer, 0] ]
-#        net = nn.Sequential(
-#                OrderedDict([
-#                    *[(
-#                        "layer_%i"%i, (nn.Linear(layer, layers[i+2], bias=True) if layer else nn.Tanh()
-#                        )) for i, layer in enumerate(layers[:-3])]
-#                    ])
-#                )
-#        net = nn.Sequential(*[ nn.Linear(layer, ll[i+1]) for i, layer in enumerate(ll[:-1]) ])
-#        self.actor = lambda : Actor(net, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
+
         self.factory = NoisyNetFactory(ll, 10, True)
         self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
     def head(self):
@@ -143,7 +120,8 @@ class Critic(nn.Module):
 
     def forward(self, goals, state, actions):
         #assert torch.float32 == goals.dtype
-        goals = self.ibottleneck(goals.to(self.device()))
+        with torch.no_grad():
+            goals = self.ibottleneck(goals.to(self.device()))
         states = state[:, 3:-config.CORE_ORIGINAL_GOAL_SIZE-config.TIMEFEAT]#config.TIMEFEAT] # SKIP GOAL and timefeature from value, leaving timefeature only for LL Actor
         if config.TIMEFEAT:
             states = torch.cat([states, state[:, -1].view(-1, 1)], 1)

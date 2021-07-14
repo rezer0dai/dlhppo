@@ -5,6 +5,7 @@ import utils.policy as policy
 import random
 
 from utils.ngd_opt import NGDOptim, callback_with_logits
+from utils.normalizer import Normalizer
 
 import config
 
@@ -38,6 +39,8 @@ class BrainOptimizer:
             print("PPO", desc.batch_size)
             self.loss = policy.PPOBCLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
+        self.adv = Normalizer(1)
+
     def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions, offline_goals, mask):
         assert self.bellman or self.clip, "ppo can be only active when clipped ( in our implementation )!"
 
@@ -56,7 +59,7 @@ class BrainOptimizer:
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
             online_actions = actions[:, :offline_actions.shape[-1]]
             pi_loss = self.loss(online_actions, offline_actions, 
-                    qa - td_targets, 
+                    qa,# - td_targets, 
                     mask)
 
 #            pi_loss = self.loss(td_targets, qa)
@@ -73,10 +76,17 @@ class BrainOptimizer:
                 online_actions = actions[:, offline_goals.shape[-1]*2:]
                 offline_actions = offline_goals
 
-            advantages = td_targets - qa.detach()
+            # td_targets may - in case of config.DOUBLE_LEARNING - hold gradients to low level policy!!
+            # but seems they will perserve even if detach, as we skip gradients from critic but keep in ll actor
+            advantages = td_targets# - qa.detach()
 #            advantages = advantages * 2.5 / advantages.abs().mean()
             # this does not necessary works, advantages should be modified in place in buffer...
-#            advantages = (advantages - advantages.mean()) / (1e-6 + advantages.std())
+
+            advantages = advantages.view(len(advantages), -1)
+            assert 1 == advantages.shape[-1], "\n shape of advantage is : {}".format(advantages.shape)
+            self.adv.update(advantages.detach())
+            advantages = self.adv.normalize(advantages)
+#            print("\n advantages ::", advantages[:10])
 
             pi_loss = self.loss(
                 advantages,

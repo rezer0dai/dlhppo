@@ -112,25 +112,26 @@ class Agent:
         self.n_approved_simulations = 0
         self.min_n_sim = min_n_sim
 
-    def step(self, info, steping):
+    def step(self, env_step_plus):
         for i, desc in enumerate(self.bd_desc):
             self.exps.step(i, desc)
 
-        return self._clocked_step(info, steping)
+        return self._clocked_step(env_step_plus)
 
 #    @timebudget
-    def _clocked_step(self, info, steping):
+    def _clocked_step(self, env_step_plus):
         if self.n_simulations is None:
             return None
 
         if self.n_approved_simulations < self.n_simulations:
             return None
 
-        for a_i, bd in self._select_algo(steping):
+        released = False
+        for a_i, bd in self._select_algo(env_step_plus):
             if not bd.learning_repeat:
                 continue
             bd.counter += 1
-            while bd.counter < bd.learning_repeat:
+            while bd.counter <= bd.learning_repeat:
                 
                 self._encoder_freeze_schedule()
 
@@ -149,6 +150,8 @@ class Agent:
                     return loss
             bd.counter = 0
             bd.info = None
+            released = True
+        self.counter += (not env_step_plus) and released
         return None
 
     def save(self, goals, states, memory, actions, probs, rewards, goods, finished):
@@ -204,9 +207,9 @@ class Agent:
 
         self.exps.shuffle()
 
-    def _select_algo(self, steping):
-        if 0 == sum([0 != bd.counter for bd in self.bd_desc]):
-            self.counter += steping
+    def _select_algo(self, env_step_plus):
+        if all(0 == bd.counter for bd in self.bd_desc):
+            self.counter += env_step_plus
         # bug here, infinite loop possible if multiple brains
         for i, bd in enumerate(self.bd_desc):
             if self.warmups[i] > 0:

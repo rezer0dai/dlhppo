@@ -5,7 +5,7 @@ SAVE = False#True
 
 DDPG = True#False#
 
-DOUBLE_LEARNING = False#True# ##### False in second DoubleL because EXPLORER only will be used!!!
+DOUBLE_LEARNING = True#False# ##### False in second DoubleL because EXPLORER only will be used!!!
 DL_EXPLORER = True#False#
 NORMALIZE = True#False#
 LLACTOR_UNOMRED = False#True#
@@ -73,8 +73,8 @@ PREFIX="multiprocess_220_"+ENV_NAME
 # CHANGES : policy.py diff * .5, ac.py probs + (old - new) -> w/o discount, HRL_HIROZON * 50 -> now w/o 50
 
 GAE = True
-HL_BATCH_SIZE = 4096
-LL_BATCH_SIZE = 256#1024#64
+HL_BATCH_SIZE = 4000
+LL_BATCH_SIZE = 2 * 2 * MIN_N_SIM*2#200
 SIGMOID = False#True#
 BPO = False
 TEST_ENVS = [ENV_NAME]#, ENV_NAME, "FetchReach-v1"]#"FetchPush-v1","FetchPush-v1"]#"FetchReach-v1"]#"FetchPush-v1"]#, "FetchPush-v1", "FetchReach-v1", "FetchPush-v1"]#

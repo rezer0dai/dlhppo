@@ -46,6 +46,14 @@ class FullModel(nn.Module):
                 continue
             for p in self.mods[self.idx[name]].parameters():
                 yield p
+    def _paramsx(self, cond):
+        bn = ""
+        for name in self.idx:
+            if not cond(name):
+                continue
+
+            bn += name
+        return bn
                 
     def enc_parameters(self):
         return self._params(lambda name: "encoder" in name)
@@ -54,15 +62,19 @@ class FullModel(nn.Module):
         return self._params(lambda name: "explorer" in name and "encoder" not in name)
     
     def critic_explorer_parameters(self, i, pi):
+#        print("\n critic_explorer_parameters: ",self._paramsx(lambda name: "explorer" in name and "critic" in name and pi in name and "_%i_"%i in name))
         return self._params(lambda name: "explorer" in name and "critic" in name and pi in name and "_%i_"%i in name)
     
     def critic_target_parameters(self, i, pi):
+#        print("\n critic_target_parameters: ",self._paramsx(lambda name: "target" in name and "critic" in name and pi in name and "_%i_"%i in name))
         return self._params(lambda name: "target" in name and "critic" in name and pi in name and "_%i_"%i in name)
     
     def actor_explorer_parameters(self, i, pi):
+#        print("\n actor_explorer_parameters: ",self._paramsx(lambda name: "explorer" in name and "actor" in name and pi in name and "_%i_"%i in name))
         return self._params(lambda name: "explorer" in name and "actor" in name and pi in name and "_%i_"%i in name)
     
     def actor_target_parameters(self, i, pi):
+#        print("\n actor_target_parameters: ",self._paramsx(lambda name: "target" in name and "actor" in name and pi in name and "_%i_"%i in name))
         return self._params(lambda name: "target" in name and "actor" in name and pi in name and "_%i_"%i in name)
          
 from torch.multiprocessing import Queue, Process
@@ -72,7 +84,7 @@ from dlppoh import HighLevelCtrlTask
 import numpy as np
 
 class DLPPOHLightning(pl.LightningModule):
-    def __init__(self, model, prefix, n_env):
+    def __init__(self, model, prefix, n_env, env, task):
         super().__init__()
         model.ready()
         self.add_module("model", model)
@@ -81,6 +93,11 @@ class DLPPOHLightning(pl.LightningModule):
         self.ready = False
         self.n_env = n_env
         self.prefix = prefix
+
+        self.env = env
+        self.task = task
+
+        self.env_step = [True, True]
         
     def delay_load(self, rank):
         if self.ready:
@@ -90,33 +107,55 @@ class DLPPOHLightning(pl.LightningModule):
 
         KEYID = self.prefix+"_hl"
 
-        high_level_task = HighLevelCtrlTask("dlppoh_dock_%i"%rank, KEYID, self.model)
+#        high_level_task = HighLevelCtrlTask("dlppoh_dock_%i"%rank, KEYID, self.model)
 
         #self.print("dlppoh_dock_%i"%rank)
 
-        self.env, self.task = install_highlevel(high_level_task, KEYID, self.model)
+#        self.env, self.task = install_highlevel(high_level_task, KEYID, self.model)
         self.ready = True
         self.playground = self.env.step(self.task, self.count * 100 + np.arange(self.n_env), 1)
         self.env.debug_stats = False#True
-        
+
     def _training_step(self, rank):
         
         self.delay_load(rank)
 
 #        print("\n ---> ", torch.cat([ep.view(-1) for ep in self.model.enc_parameters()]).sum(), os.getpid())
 
-        steping = False
+        oid = -1
         while True:
+#            self.model.zero_grad()
 
-            loss = self.task.ENV.ll_env.agent.step(True, steping)
+            loss = self.task.ENV.ll_env.agent.step(self.env_step[0])
             if loss is not None:
+                oid = 0
+                self.env_step[0] = False
+                out = """print("\n\nLEARNING LOWPI;", 
+                        torch.cat([ep.view(-1) for ep in self.model.actor_explorer_parameters(0, "lowpi")]).sum(),
+                        "changing also highpi ?",
+                        torch.cat([ep.view(-1) for ep in self.model.actor_explorer_parameters(0, "highpi")]).sum(),
+                        )"""
                 break
 
-            loss = self.env.agent.step(None, steping)
+            loss = self.env.agent.step(self.env_step[1])
             if loss is not None:
+                oid = 1
+                self.env_step[1] = False
+                out="""print("\n\nLEARNING HIGHPI;", 
+                        torch.cat([ep.view(-1) for ep in self.model.actor_explorer_parameters(0, "high")]).sum(),
+                        "changing also lowpi ?",
+                        torch.cat([ep.view(-1) for ep in self.model.actor_explorer_parameters(0, "lowpi")]).sum(),
+                        "changing critic target ?",
+                        torch.cat([ep.view(-1) for ep in self.model.critic_target_parameters(0, "lowpi")]).sum(),
+                        "changing critic explorer ?",
+                        torch.cat([ep.view(-1) for ep in self.model.critic_explorer_parameters(0, "lowpi")]).sum(),
+                        "changing own explorer ?",
+                        torch.cat([ep.view(-1) for ep in self.model.critic_explorer_parameters(1, "lowpi")]).sum(),
+                        )"""
                 break
 
-            steping = True
+            self.env_step[0] = True
+            self.env_step[1] = True
 
             data, acu_reward = next(self.playground, (None, None))
             if data is not None:
@@ -128,12 +167,14 @@ class DLPPOHLightning(pl.LightningModule):
                 test = next(self.env.evaluate(self.task, None))
                 self.finished = test[0]
                 msg = "\n\n  <{} min> #{} > ENV TEST : {}".format("%.2f"%((time.time()-self.env_start) / 60), self.count, test)
-                self.print(msg)
+#                self.print(msg)
+                print(msg)
 
-            self.print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
+#            self.print
+            print("\n[ <{}min> new ep -> #{} last_reward = {} ]".format(
               "%.2f"%((time.time()-self.env_start) / 60), self.count, self.reward.mean()))
             self.playground = self.env.step(self.task, self.count * 100 + np.arange(self.n_env), 1)
-        return loss
+        return loss, oid
         
     def on_train_batch_start(self, _batch, _batch_idx, _dataloader_idx):
         if self.finished:
@@ -144,15 +185,18 @@ class DLPPOHLightning(pl.LightningModule):
     def training_step(self, batch, nb_batch, optimizer_idx=-1) -> OrderedDict:
         loss = None
         while loss is None:
-            loss = self._training_step(os.getpid())
-        return OrderedDict({'loss': loss, 'log': "testlog%i"%nb_batch, 'progress_bar': "pb%i"%nb_batch})
+            loss, oid = self._training_step(os.getpid())
+        return OrderedDict({'loss': loss, 'oid':oid, 'log': "testlog%i"%nb_batch, 'progress_bar': "pb%i"%nb_batch})
             
     def configure_optimizers(self) -> List[Optimizer]:
-        return [optim.Adam(self.model.explorer_parameters(), lr=3e-4)]
+#        return [optim.Adam(self.model.explorer_parameters(), lr=3e-4)]
         return [
                 optim.Adam(self.model.actor_explorer_parameters(0, "lowpi"), lr=1e-3),
-                optim.Adam(self.model.actor_explorer_parameters(0, "highpi"), lr=3e-4),
-                optim.Adam([p for p in self.model.critic_explorer_parameters(i, "lowpi") for i in range(2)], lr=1e-3),
+                optim.Adam(self.model.actor_explorer_parameters(0, "pi"), lr=3e-4),#both for double learning!
+
+                optim.Adam(self.model.critic_explorer_parameters(0, "lowpi"), lr=1e-3),
+                optim.Adam(self.model.critic_explorer_parameters(1, "lowpi"), lr=1e-3),
+#                optim.Adam([p for p in self.model.critic_explorer_parameters(i, "lowpi") for i in range(2)], lr=1e-3),
                 ]
     
     def train_dataloader(self) -> DataLoader:
@@ -174,4 +218,4 @@ def get_ready(prefix, do_sampling=True):
 
     env, task = install_highlevel(high_level_task, KEYID, fm, do_sampling=do_sampling)
     fm.ready()
-    return fm
+    return fm, env, task

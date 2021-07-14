@@ -20,13 +20,13 @@ if '__main__' == __name__:
 
     algo.delay_load(1)
 
-    for seed in range(10):
+    for seed in range(1):
         z = 0
         s, g, r, d = gym.reset([seed])
         s = torch.cat([s, g], 1)
         import time
         for _ in range(1000):
-            d,m,_ = algo.env.agent.exploit(g, s, torch.zeros(0), 0)
+            d,_,_ = algo.env.agent.exploit(g, s, torch.zeros(0), 0)
 #            g_g = torch.randn(d.sample().shape)
             g_g = d.sample()
             for _ in range(10):
@@ -36,9 +36,8 @@ if '__main__' == __name__:
                 s, g, r, d = gym.step(a)
                 s = torch.cat([s, g], 1)
                 if 0 == r:
-#                    print("GOAL REACHED", z)
+                    print("GOAL REACHED", z)
 #                    time.sleep(10)
                     break
-        break
-    print("we are done here maybe")
+    print("EXPERIMENT DONE")
 

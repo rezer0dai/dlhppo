@@ -114,8 +114,8 @@ class PPOLoss(RLLoss):
 #        diff = (new_probs - old_probs).mean(1)
 #        diff = (new_probs.mean(1) - old_probs.mean(1))
         diff = new_probs - old_probs
-        if config.DOUBLE_LEARNING:
-            diff = diff * .5
+#        if config.DOUBLE_LEARNING:
+#            diff = diff * .5
 
         if adv.grad_fn is None:
             # debug
