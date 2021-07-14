@@ -287,7 +287,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     HL_GOAL_SIZE = config.CORE_GOAL_SIZE
     HL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     HL_MAX_STEPS = config.HRL_HIGH_STEP
-    RECALC_PER_PUSH = 3 if not config.FLOATING_STEP else 5
+    RECALC_PER_PUSH = 3 if not config.FLOATING_STEP else 11
 
     # if ergoJR it is already normalized goal!
 #    goal_encoder = GoalGlobalNorm(HL_GOAL_SIZE)# if not config.ERGOJR else GoalIdentity(HL_GOAL_SIZE)
@@ -295,7 +295,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     hl_state_encoder = GlobalNormalizerWithTimeEx(HL_STATE_SIZE, False)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
     state_encoder = hl_state_encoder#GlobalNormalizerWithTime(goal_encoder, HL_STATE_SIZE, 1)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
 
-    n_eps = 1 + 4096 // (config.MIN_N_SIM * config.HRL_HIGH_STEP * RECALC_PER_PUSH)#1#5 if not config.FLOATING_STEP else 1
+    n_eps = 1 + 4000 // (config.MIN_N_SIM * config.HRL_HIGH_STEP * RECALC_PER_PUSH)#1#5 if not config.FLOATING_STEP else 1
     delay = n_eps * HL_MAX_STEPS
     repeat = 80#2 * 10 * int(1 + (config.MIN_N_SIM * delay * RECALC_PER_PUSH) / config.HL_BATCH_SIZE) // 3
     #repeat = (config.MIN_N_SIM * delay * RECALC_PER_PUSH) // 100

@@ -61,6 +61,7 @@ class NoisyNet(nn.Module):
         self.sigma = nn.ParameterList(sigma)
 
     def sample_noise(self):
+        return
         self.count += 1
         if not self.noise_interval:
             return

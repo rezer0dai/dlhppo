@@ -51,7 +51,7 @@ class FullModel(nn.Module):
         return self._params(lambda name: "encoder" in name)
 
     def explorer_parameters(self):
-        return self._params(lambda name: "explorer" in name)
+        return self._params(lambda name: "explorer" in name and "encoder" not in name)
     
     def critic_explorer_parameters(self, i, pi):
         return self._params(lambda name: "explorer" in name and "critic" in name and pi in name and "_%i_"%i in name)

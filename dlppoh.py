@@ -269,7 +269,7 @@ class HighLevelCtrlTask:
         pi = Normal(actions[:, a.shape[1]: a.shape[1]*2], actions[:, a.shape[1]*2:])
         og = self.ll_ctrl.optimal_goals(base_states, next_states)
 
-        return a, og
+#        return a, og
 
         mean_a = pi.log_prob(a).mean(1) 
         baseline_up = mean_a * (1. + 1. - self.ls.get_ls())
