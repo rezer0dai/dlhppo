@@ -28,7 +28,7 @@ class NoisyLinear(nn.Linear):
         return F.linear(data, self.weight + sigma * Variable(self.noise).to(sigma.device))
 
     def sample_noise(self):
-#        assert False
+        #assert False
         torch.randn(self.noise.size(), out=self.noise)
 
     def remove_noise(self):
@@ -62,7 +62,7 @@ class NoisyNet(nn.Module):
         self.sigma = nn.ParameterList(sigma)
 
     def sample_noise(self):
-#        return
+        #return
         self.count += 1
         if not self.noise_interval:
             return
@@ -71,8 +71,8 @@ class NoisyNet(nn.Module):
         l = random.randint(0, len(self.layers) - 1)
         self.layers[l].sample_noise()
 
-        for l in self.layers:
-            l.sample_noise()
+#        for l in self.layers:
+#            l.sample_noise()
 
     def remove_noise(self):
         for layer in self.layers:

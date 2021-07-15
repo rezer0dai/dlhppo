@@ -5,7 +5,6 @@ import utils.policy as policy
 import random
 
 from utils.ngd_opt import NGDOptim, callback_with_logits
-from utils.normalizer import Normalizer
 
 import config
 
@@ -39,7 +38,7 @@ class BrainOptimizer:
             print("PPO", desc.batch_size)
             self.loss = policy.PPOBCLoss(eps=desc.ppo_eps, advantages=True, boost=False)
 
-        self.adv = Normalizer(1)
+        self.adv = desc.adv_norm
 
     def __call__(self, qa, td_targets, w_is, probs, actions, dist, _eval, retain_graph, offline_actions, offline_goals, mask):
         assert self.bellman or self.clip, "ppo can be only active when clipped ( in our implementation )!"
@@ -58,8 +57,18 @@ class BrainOptimizer:
             
             assert actions.shape[-1] == offline_actions.shape[-1] * 3
             online_actions = actions[:, :offline_actions.shape[-1]]
+
+            advantages = qa# - td_targets.detach()
+            advantages = advantages.view(len(advantages), -1)
+            assert 1 == advantages.shape[-1], "\n shape of advantage is : {}".format(advantages.shape)
+            with torch.no_grad():
+                self.adv.update(advantages)
+                #self.adv.update(-advantages)
+            advantages = self.adv.normalize(advantages)
+            #print("\n A)advantages ::", advantages[:10])
+
             pi_loss = self.loss(online_actions, offline_actions, 
-                    qa,# - td_targets, 
+                    qa,
                     mask)
 
 #            pi_loss = self.loss(td_targets, qa)
@@ -84,9 +93,10 @@ class BrainOptimizer:
 
             advantages = advantages.view(len(advantages), -1)
             assert 1 == advantages.shape[-1], "\n shape of advantage is : {}".format(advantages.shape)
-            self.adv.update(advantages.detach())
+            with torch.no_grad():
+                self.adv.update(advantages)
             advantages = self.adv.normalize(advantages)
-#            print("\n advantages ::", advantages[:10])
+#            print("\n B)advantages ::", advantages[:10])
 
             pi_loss = self.loss(
                 advantages,

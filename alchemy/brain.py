@@ -56,18 +56,18 @@ class Brain(META):
             Path(model_path).mkdir(parents=True, exist_ok=True)
 
         self.n_agents = 0
-        self.hihgpi = "_hl_" in self.mp
+        self.highpi = "_hl_" in self.mp
         self.full_model = full_model
 
         nes = Actor()
 # TODO i reversed here detached logic from target to behaviour
         self.ac_explorer = ActorCritic(full_model, encoder, goal_encoder,
                     [ nes.head() for _ in range(n_actors) ],
-                    [ Critic() for _ in range(n_critics) ], n_agents, False, self.hihgpi)
+                    [ Critic() for _ in range(n_critics) ], n_agents, False, self.highpi)
 
         self.ac_target = ActorCritic(full_model, encoder, goal_encoder,
                     [ Actor().head() for _ in range(1 if not detach_actors else n_actors) ],
-                    [ Critic() for _ in range(1 if not detach_critics else n_critics) ], n_agents, True, self.hihgpi)
+                    [ Critic() for _ in range(1 if not detach_critics else n_critics) ], n_agents, True, self.highpi)
 
         #print(self.ac_target)
         #print(self.ac_explorer)
@@ -92,24 +92,24 @@ class Brain(META):
 
         self.resample(0)
 
-    def tap(self, ind): return self.full_model.actor_target_parameters(ind, "highpi" if self.hihgpi else "lowpi")
-    def eap(self, ind): return self.full_model.actor_explorer_parameters(ind, "highpi" if self.hihgpi else "lowpi")
+    def tap(self, ind): return self.full_model.actor_target_parameters(ind, "highpi" if self.highpi else "lowpi")
+    def eap(self, ind): return self.full_model.actor_explorer_parameters(ind, "highpi" if self.highpi else "lowpi")
 
     def tcp(self, ind):
         if config.N_CRITICS == 1:
             assert 0 == ind
-            if self.hihgpi:
+            if self.highpi:
                 return self.full_model.critic_explorer_parameters(0, "lowpi")
             return self.full_model.critic_target_parameters(0, "lowpi")
-        return self.full_model.critic_target_parameters(self.hihgpi % (config.N_CRITICS - (not config.DETACH_CRITICS)), "lowpi")
+        return self.full_model.critic_target_parameters(self.highpi % (config.N_CRITICS - (not config.DETACH_CRITICS)), "lowpi")
 
     def ecp(self, ind): 
         if config.N_CRITICS == 1:
             assert 0 == ind
-            if self.hihgpi:
+            if self.highpi:
                 return self.full_model.critic_target_parameters(0, "lowpi")
             return self.full_model.critic_explorer_parameters(0, "lowpi")
-        return self.full_model.critic_explorer_parameters(self.hihgpi, "lowpi")
+        return self.full_model.critic_explorer_parameters(self.highpi, "lowpi")
 
     #@timebudget
     def learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
@@ -118,7 +118,7 @@ class Brain(META):
 
     #@timebudget
     def _learn(self, batch, tau_actor, tau_critic, backward_policy, tind, mean_only, separate_actors):
-        self.remove_noise()
+#        self.remove_noise()
         if True:#with timebudget("_learn_debatch"):
             w_is, (goals, states, memory, actions, old_probs, _, n_goals, n_states, n_memory, n_rewards, n_discounts) = batch
 
@@ -139,7 +139,7 @@ class Brain(META):
 #            with torch.no_grad():
 #                n_qa, n_dist = self.ac_target.suboptimal_qa(n_goals, n_states, n_memory, double=False)
 
-            if config.DOUBLE_LEARNING and self.hihgpi:
+            if config.DOUBLE_LEARNING and self.highpi:
                 n_qa, n_dist = self.ac_target.suboptimal_qa(n_goals, n_states, n_memory, double=True)
             else:
                 with torch.no_grad():
@@ -153,7 +153,7 @@ class Brain(META):
             # TD(0) with k-step estimators
             td_targets = n_rewards + n_discounts * n_qa
 
-        sync_delta = 1 + 2 * self.hihgpi
+        sync_delta = 1 + 2 * self.highpi
         loss = 0.
         if True:#with timebudget("_learn_backprop"):
     #        if "lowlevel" in self.mp and random.random() < .1:
@@ -163,13 +163,13 @@ class Brain(META):
                 pi_loss = []
                 
                 q_replay, dists, probs_, offline_actions, offline_goals = self.ac_explorer(
-                        goals, states, memory, self.hihgpi, 0, mean_only, 
+                        goals, states, memory, self.highpi, 0, mean_only, 
                         probs=probs, old_pis=actions)
 
                 mask = torch.ones(len(offline_goals))
                 if actions.shape[-1] != offline_goals.shape[-1] * 3:
-                    mask[0. != n_rewards.sum(1)] = -1.
-#                    print("\n\n--->", actions.shape, sum(mask))
+                    mask[0. != n_rewards.sum(1)] = -.1
+#                    print("\n\n--->", self.highpi, actions.shape, sum(mask > 0), sum(mask < 0))
 
                 # learn ACTOR ~ explorer
                 pi_loss, optimizer = backward_policy(
@@ -193,7 +193,7 @@ class Brain(META):
 
 #        print("LEARNNNN->", len(goals), "TOTAL LOSS", loss, "ACTOR", pi_loss, "CRITIC", critic_loss)
 
-        target = self.tcp(self.hihgpi * config.DETACH_CRITICS)
+        target = self.tcp(self.highpi * config.DETACH_CRITICS)
         explorer = self.ecp(random.randint(0, self.ac_explorer.n_critics-1))
 
         self.meta_update(

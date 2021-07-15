@@ -28,7 +28,7 @@ if '__main__' == __name__:
     print("\n", "*"*30, "\n")
     opts = algo.configure_optimizers()
     i = 0
-    while True:#-1 != algo.on_train_batch_start(None, None, None):
+    while -1 != algo.on_train_batch_start(None, None, None):
         i += 1
         info = algo.training_step(None, i, -1)
 

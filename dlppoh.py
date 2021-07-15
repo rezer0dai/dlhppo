@@ -252,10 +252,12 @@ class HighLevelCtrlTask:
             pi,
             self.learn_mode, reset=False)
 
-        assert actions.shape[-1] >= ll_actions.shape[-1]*2
-        self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]+ll_actions.shape[-1]*2] = torch.cat([ # TODO[ : KICK OFF
-            log_prob,#torch.ones_like(log_prob ),
-            ll_actions], 1)#torch.ones_like(actionsZ) ], 1)
+        if not config.DDPG:
+            assert actions.shape[-1] >= ll_actions.shape[-1]*2
+            self.einfo.pi[:, actions.shape[-1]:actions.shape[-1]+ll_actions.shape[-1]*2] = torch.cat([ # TODO[ : KICK OFF
+                log_prob,#torch.ones_like(log_prob ),
+                ll_actions], 1)#torch.ones_like(actionsZ) ], 1)
+
         self.einfo.pi[:, actions.shape[-1]*2:] = reactions
 
         return self.einfo

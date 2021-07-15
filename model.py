@@ -64,7 +64,7 @@ class ActorFactory: # proxy
 
         layers = [l for layer in ll for l in [layer, 0] ]
 
-        self.factory = NoisyNetFactory(ll, 10, True)
+        self.factory = NoisyNetFactory(ll, 1, True)
         self.actor = lambda head: Actor(head, action_size, f_mean_clip, f_scale_clip, ibottleneck, noise_scale)
     def head(self):
  #       return self.actor()

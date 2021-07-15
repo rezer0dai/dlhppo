@@ -19,6 +19,13 @@ import random#, timebudget
 import config
 import os
 
+from utils.normalizer import Normalizer
+adv_norm = Normalizer(1)
+adv_norm.share_memory()
+
+#from utils.encoders import GoalIdentity
+#action_to_goal_enc = GoalIdentity(config.HRL_ACTION_SIZE)
+
 action_to_goal_enc = nn.Sequential(
         nn.Linear(config.HRL_ACTION_SIZE, config.INFO_BOTTLENECK_SIZE, bias=False),
         nn.Tanh(),
@@ -189,7 +196,7 @@ from hrl import ReacherHRL
 
 def install_lowlevel(low_level_task, fm, do_sampling):
     KEYID = config.PREFIX+"_ll"
-    RECALC_PER_PUSH = 5
+    RECALC_PER_PUSH = 10#5
     LL_GOAL_SIZE = config.HRL_ACTION_SIZE
     LL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     LL_MAX_STEPS = 1 + config.HRL_HIGH_STEP * config.HRL_STEP_COUNT
@@ -224,7 +231,8 @@ def install_lowlevel(low_level_task, fm, do_sampling):
                 lr_actor=3e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = config.HRL_STEP_COUNT * config.HRL_STEP_COUNT * 1,#1ep just sit and look, another ep learn from random player
                 sync_delta_a=3, sync_delta_c=2, tau_actor=5e-2, tau_critic=5e-2,
-                bellman=config.DDPG, ppo_eps=2e-1 if not config.DDPG else None, natural=False, mean_only=False, separate_actors=False),
+                bellman=config.DDPG, ppo_eps=2e-1 if not config.DDPG else None, natural=False, mean_only=False, separate_actors=False,
+                adv_norm=adv_norm),
     ]
     if do_sampling: print("\nLOW LEVEL POLICY: \n", [b for b in brain])
 
@@ -294,7 +302,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     HL_GOAL_SIZE = config.CORE_GOAL_SIZE
     HL_STATE_SIZE = config.CORE_STATE_SIZE + config.CORE_ORIGINAL_GOAL_SIZE
     HL_MAX_STEPS = config.HRL_HIGH_STEP
-    RECALC_PER_PUSH = 1+(3 if not config.FLOATING_STEP else 5)
+    RECALC_PER_PUSH = 1+config.RECALC_PER_PUSH_LL
 
     # if ergoJR it is already normalized goal!
 #    goal_encoder = GoalGlobalNorm(HL_GOAL_SIZE)# if not config.ERGOJR else GoalIdentity(HL_GOAL_SIZE)
@@ -303,7 +311,7 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
     state_encoder = hl_state_encoder#GlobalNormalizerWithTime(goal_encoder, HL_STATE_SIZE, 1)# if not config.ERGOJR else IdentityEncoder(HL_STATE_SIZE)
 
     recalc = RECALC_PER_PUSH - 1
-    n_eps = 1 + config.HL_BATCH_SIZE // (config.MIN_N_SIM * config.HRL_HIGH_STEP * recalc)#1#5 if not config.FLOATING_STEP else 1
+    n_eps = config.HL_BATCH_SIZE // (config.MIN_N_SIM * config.HRL_HIGH_STEP * recalc)#1#5 if not config.FLOATING_STEP else 1
     delay = n_eps * HL_MAX_STEPS
     repeat = 80#2 * 10 * int(1 + (config.MIN_N_SIM * delay * recalc) / config.HL_BATCH_SIZE) // 3
     #repeat = (config.MIN_N_SIM * delay * recalc) // 100
@@ -317,7 +325,8 @@ def install_highlevel(high_level_task, keyid, fm, do_sampling=False):
                 lr_actor=1e-4, learning_delay=delay, learning_repeat=repeat,
                 warmup = 0,#110,
                 sync_delta_a=3, sync_delta_c=2, tau_actor=7e-2, tau_critic=5e-2,
-                bellman=False, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False),
+                bellman=False, ppo_eps=2e-1, natural=False, mean_only=False, separate_actors=False,
+                adv_norm=adv_norm),
     ]
 
     if do_sampling: print("\nHIGH LEVEL: \n", [b for b in brain])

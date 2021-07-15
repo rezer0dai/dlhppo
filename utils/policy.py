@@ -141,10 +141,8 @@ class PPOBCLoss(PPOLoss):
         loss1 = adv.view(len(adv), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
         loss2 = F.mse_loss(offline_actions, online_actions) * mask
         #print("\n\n ----> %.2f ----> %.2f\n", loss1, loss2)
-        loss1x = self.ppo_loss(old_probs, new_probs, loss1)
-        loss2x = self.ppo_loss(old_probs, new_probs, -loss2)
-#        print("NEW LOSS", -loss1.mean(), "-->", -loss1x.mean(), "][", -loss2.mean(), "==>", -loss2x.mean(), "??", offline_actions.sum(), "...")
-        return loss1x + .5 * loss2x
+        loss = loss1 + .1 * loss2
+        return self.ppo_loss(old_probs, new_probs, loss)
 
 class TD3BCLoss:
     def td3bc(self, qa):
@@ -152,14 +150,16 @@ class TD3BCLoss:
             + offline learning
             - online learning
         """
-        lmbda = 2.5 / qa.abs().mean().detach()
+        lmbda = 1.5 / qa.abs().mean().detach()
         return lmbda * qa.mean()
 
-    def __call__(self, online_actions, offline_actions, qa, mask):
-        qa = qa.view(len(qa), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
+    def __call__(self, online_actions, offline_actions, advantages, mask):
+        advantages = advantages.view(len(advantages), -1).sum(1) # maximizing MROCS, cooperation between subtask approach
 
         bc_loss = F.mse_loss(offline_actions, online_actions) * mask
-        loss = self.td3bc(qa)
+#        loss = self.td3bc(advantages)
+        # advantages are already normalized
+        loss = advantages.mean()
 #        print("\nTD3+BC", loss.mean(), bc_loss.mean(), "??", offline_actions.sum(), "...")
         return loss - bc_loss
 

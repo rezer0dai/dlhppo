@@ -15,8 +15,12 @@ class BrainDescription:
             optim_pool_size, optim_epochs, optim_batch_size, recalc_delay,
             lr_actor, learning_delay, learning_repeat, warmup,
             sync_delta_a, sync_delta_c, tau_actor, tau_critic,
-            bellman, ppo_eps, natural, mean_only, separate_actors, prio_schedule=None
+            bellman, ppo_eps, natural, mean_only, separate_actors, prio_schedule=None,
+            adv_norm=None
             ):
+        assert adv_norm is not None
+        self.adv_norm = adv_norm
+
         self.memory_size = memory_size
         self.batch_size = batch_size
         self.optim_epochs = optim_epochs
